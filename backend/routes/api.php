@@ -44,6 +44,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/matching/request', [MatchingController::class, 'store']);
         Route::get('/matching/request/{podRequest}', [MatchingController::class, 'show']);
         Route::delete('/matching/request/{podRequest}', [MatchingController::class, 'destroy']);
+        Route::get('/matching/partner-requests', [MatchingController::class, 'indexPartnerRequests']);
+        Route::post('/matching/partner-requests', [MatchingController::class, 'storePartnerRequest']);
+        Route::get('/matching/partner-requests/{partnerMatchRequest}', [MatchingController::class, 'showPartnerRequest']);
+        Route::post('/matching/partner-requests/{partnerMatchRequest}/accept', [MatchingController::class, 'acceptPartnerRequest']);
+        Route::post('/matching/partner-requests/{partnerMatchRequest}/decline', [MatchingController::class, 'declinePartnerRequest']);
+        Route::delete('/matching/partner-requests/{partnerMatchRequest}', [MatchingController::class, 'cancelPartnerRequest']);
 
         Route::get('/pods', [PodController::class, 'index']);
         Route::get('/pods/{pod}', [PodController::class, 'show']);

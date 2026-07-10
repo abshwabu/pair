@@ -362,66 +362,6 @@ class MatchingTest extends TestCase
         $this->assertNotNull($pollResponse->json('data.pod_id'));
     }
 
-    public function test_user_can_match_with_specific_target_goal(): void
-    {
-        Queue::fake();
-
-        $user1 = $this->createUser('user1@example.com', 'UTC', 'en');
-        $user2 = $this->createUser('user2@example.com', 'UTC', 'en');
-
-        $goal1 = $this->createGoal($user1, 'fitness', 'steady');
-        $goal2 = $this->createGoal($user2, 'fitness', 'steady');
-
-        PodRequest::create([
-            'user_id' => $user2->id,
-            'goal_id' => $goal2->id,
-            'status' => 'open',
-            'timezone_tolerance_hours' => 3,
-            'language' => 'en',
-        ]);
-
-        $response = $this->actingAs($user1, 'sanctum')
-            ->postJson('/api/v1/matching/request', [
-                'goal_id' => $goal1->id,
-                'timezone_tolerance_hours' => 3,
-                'target_goal_id' => $goal2->id,
-            ]);
-
-        $response->assertStatus(201)
-            ->assertJsonPath('data.status', 'matched')
-            ->assertJsonStructure(['data' => ['pod_id']]);
-
-        $this->assertDatabaseCount('pods', 1);
-        $this->assertDatabaseCount('pod_members', 2);
-    }
-
-    public function test_targeted_match_fails_when_partner_unavailable(): void
-    {
-        $user1 = $this->createUser('user1@example.com', 'UTC', 'en');
-        $user2 = $this->createUser('user2@example.com', 'UTC', 'es');
-
-        $goal1 = $this->createGoal($user1, 'fitness', 'steady');
-        $goal2 = $this->createGoal($user2, 'fitness', 'steady');
-
-        PodRequest::create([
-            'user_id' => $user2->id,
-            'goal_id' => $goal2->id,
-            'status' => 'open',
-            'timezone_tolerance_hours' => 3,
-            'language' => 'es',
-        ]);
-
-        $response = $this->actingAs($user1, 'sanctum')
-            ->postJson('/api/v1/matching/request', [
-                'goal_id' => $goal1->id,
-                'timezone_tolerance_hours' => 3,
-                'target_goal_id' => $goal2->id,
-            ]);
-
-        $response->assertStatus(422)
-            ->assertJsonPath('error.code', 'target_unavailable');
-    }
-
     public function test_blocked_users_are_not_matched(): void
     {
         $user1 = $this->createUser('user1@example.com', 'UTC', 'en');
