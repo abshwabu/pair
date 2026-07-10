@@ -54,7 +54,7 @@ services:
       POSTGRES_USER: pair_user
       POSTGRES_PASSWORD: pair_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
