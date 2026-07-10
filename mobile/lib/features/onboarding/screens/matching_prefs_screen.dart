@@ -44,7 +44,10 @@ class MatchingPrefsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               if (form.error != null) ...[
-                ErrorBanner(message: form.error!),
+                ErrorBanner(
+                  message: form.error!,
+                  onDismiss: notifier.clearError,
+                ),
                 const SizedBox(height: AppSpacing.md),
               ],
               Text(

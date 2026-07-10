@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,6 +53,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }.toList()
       ..sort();
 
+    final avatarImage = notifier.avatarImage;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Set up profile')),
       body: SafeArea(
@@ -76,7 +76,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               if (form.error != null) ...[
-                ErrorBanner(message: form.error!),
+                ErrorBanner(
+                  message: form.error!,
+                  onDismiss: notifier.clearError,
+                ),
                 const SizedBox(height: AppSpacing.md),
               ],
               Center(
@@ -98,10 +101,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   child: CircleAvatar(
                     radius: 48,
                     backgroundColor: theme.colorScheme.primaryContainer,
-                    backgroundImage: notifier.avatarFile != null
-                        ? FileImage(notifier.avatarFile!)
-                        : null,
-                    child: notifier.avatarFile == null
+                    backgroundImage: avatarImage,
+                    child: avatarImage == null
                         ? Icon(
                             Icons.camera_alt_outlined,
                             size: 32,
@@ -141,26 +142,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     ? null
                     : (value) {
                         if (value != null) notifier.setTimezone(value);
-                      },
-              ),
-              const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                initialValue: LanguageOptions.labels.containsKey(form.language)
-                    ? form.language
-                    : 'en',
-                decoration: const InputDecoration(labelText: 'Language'),
-                items: LanguageOptions.labels.entries
-                    .map(
-                      (entry) => DropdownMenuItem(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      ),
-                    )
-                    .toList(),
-                onChanged: form.isLoading
-                    ? null
-                    : (value) {
-                        if (value != null) notifier.setLanguage(value);
                       },
               ),
               const SizedBox(height: AppSpacing.lg),

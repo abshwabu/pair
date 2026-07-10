@@ -40,7 +40,7 @@ class LoginScreen extends ConsumerWidget {
               if (form.error != null) ...[
                 ErrorBanner(
                   message: form.error!,
-                  onDismiss: () => notifier.setEmail(form.email),
+                  onDismiss: notifier.clearError,
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],

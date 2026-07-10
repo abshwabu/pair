@@ -27,7 +27,9 @@ class SplashNotifier extends StateNotifier<SplashState> {
   Future<String?> bootstrap() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      return await _authService.resolveSplashRoute();
+      final route = await _authService.resolveSplashRoute();
+      state = state.copyWith(isLoading: false);
+      return route;
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
       return null;

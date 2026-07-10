@@ -44,6 +44,15 @@ class GoalCategoryScreen extends ConsumerWidget {
 
                     return Card(
                       clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        side: BorderSide(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
                       child: InkWell(
                         onTap: () {
                           notifier.selectCategory(category.id);

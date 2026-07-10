@@ -62,6 +62,8 @@ class GoalDetailFormNotifier extends StateNotifier<GoalDetailFormState> {
   void setPace(String value) =>
       state = state.copyWith(pace: value, clearErrors: true);
 
+  void clearError() => state = state.copyWith(clearErrors: true);
+
   bool _validate() {
     String? titleError;
     String? targetDescriptionError;

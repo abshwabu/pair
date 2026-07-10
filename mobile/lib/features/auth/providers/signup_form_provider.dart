@@ -76,6 +76,8 @@ class SignupFormNotifier extends StateNotifier<SignupFormState> {
   void setConfirmPassword(String value) =>
       state = state.copyWith(confirmPassword: value, clearErrors: true);
 
+  void clearError() => state = state.copyWith(clearErrors: true);
+
   bool _validate() {
     String? nameError;
     String? emailError;
@@ -92,7 +94,9 @@ class SignupFormNotifier extends StateNotifier<SignupFormState> {
       emailError = 'Enter a valid email address.';
     }
 
-    if (state.password.length < 8) {
+    if (state.password.isEmpty) {
+      passwordError = 'Password is required.';
+    } else if (state.password.length < 8) {
       passwordError = 'Password must be at least 8 characters.';
     }
 

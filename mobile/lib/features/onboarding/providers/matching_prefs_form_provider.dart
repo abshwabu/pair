@@ -68,6 +68,8 @@ class MatchingPrefsFormNotifier extends StateNotifier<MatchingPrefsFormState> {
     state = state.copyWith(language: language, clearErrors: true);
   }
 
+  void clearError() => state = state.copyWith(clearErrors: true);
+
   Future<bool> submit() async {
     state = state.copyWith(isLoading: true, clearErrors: true);
 

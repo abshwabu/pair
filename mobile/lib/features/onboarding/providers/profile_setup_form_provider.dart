@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:pair/core/network/api_response.dart';
@@ -11,8 +12,8 @@ class ProfileSetupFormState {
   const ProfileSetupFormState({
     this.name = '',
     this.timezone = 'UTC',
-    this.language = 'en',
     this.avatarPath,
+    this.avatarUrl,
     this.isLoading = false,
     this.isInitializing = true,
     this.error,
@@ -21,8 +22,8 @@ class ProfileSetupFormState {
 
   final String name;
   final String timezone;
-  final String language;
   final String? avatarPath;
+  final String? avatarUrl;
   final bool isLoading;
   final bool isInitializing;
   final String? error;
@@ -31,8 +32,8 @@ class ProfileSetupFormState {
   ProfileSetupFormState copyWith({
     String? name,
     String? timezone,
-    String? language,
     String? avatarPath,
+    String? avatarUrl,
     bool? isLoading,
     bool? isInitializing,
     String? error,
@@ -43,8 +44,8 @@ class ProfileSetupFormState {
     return ProfileSetupFormState(
       name: name ?? this.name,
       timezone: timezone ?? this.timezone,
-      language: language ?? this.language,
       avatarPath: clearAvatar ? null : avatarPath ?? this.avatarPath,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       isLoading: isLoading ?? this.isLoading,
       isInitializing: isInitializing ?? this.isInitializing,
       error: clearErrors ? null : error ?? this.error,
@@ -75,7 +76,7 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
       state = state.copyWith(
         name: user.name,
         timezone: timezone,
-        language: user.language ?? 'en',
+        avatarUrl: user.avatarUrl,
         isInitializing: false,
       );
     } on ApiException catch (e) {
@@ -94,11 +95,10 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
   void setTimezone(String value) =>
       state = state.copyWith(timezone: value, clearErrors: true);
 
-  void setLanguage(String value) =>
-      state = state.copyWith(language: value, clearErrors: true);
-
   void setAvatarPath(String? path) =>
       state = state.copyWith(avatarPath: path, clearErrors: true);
+
+  void clearError() => state = state.copyWith(clearErrors: true);
 
   bool _validate() {
     if (state.name.trim().isEmpty) {
@@ -115,13 +115,13 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
 
     try {
       if (state.avatarPath != null) {
-        await _profileService.uploadAvatar(state.avatarPath!);
+        final user = await _profileService.uploadAvatar(state.avatarPath!);
+        state = state.copyWith(avatarUrl: user.avatarUrl);
       }
 
       await _profileService.updateProfile(
         name: state.name.trim(),
         timezone: state.timezone,
-        language: state.language,
       );
 
       state = state.copyWith(isLoading: false);
@@ -140,6 +140,16 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
 
   File? get avatarFile =>
       state.avatarPath != null ? File(state.avatarPath!) : null;
+
+  ImageProvider? get avatarImage {
+    if (state.avatarPath != null) {
+      return FileImage(File(state.avatarPath!));
+    }
+    if (state.avatarUrl != null && state.avatarUrl!.isNotEmpty) {
+      return NetworkImage(state.avatarUrl!);
+    }
+    return null;
+  }
 }
 
 final profileSetupFormProvider =

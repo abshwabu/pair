@@ -1,12 +1,21 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/storage/token_storage.dart';
 
-const _apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://localhost:8000/api/v1',
-);
+const _configuredApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+String _defaultApiBaseUrl() {
+  if (kIsWeb) return 'http://localhost:8000/api/v1';
+  if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1';
+  return 'http://localhost:8000/api/v1';
+}
+
+String get apiBaseUrl =>
+    _configuredApiBaseUrl.isNotEmpty ? _configuredApiBaseUrl : _defaultApiBaseUrl();
 
 /// Dio wrapper that attaches auth, parses the backend envelope, and retries
 /// once on 401 after a silent token refresh (stubbed for now).
@@ -17,7 +26,7 @@ class ApiClient {
   })  : _tokenStorage = tokenStorage,
         _dio = dio ?? Dio() {
     _dio
-      ..options.baseUrl = _apiBaseUrl
+      ..options.baseUrl = apiBaseUrl
       ..options.connectTimeout = const Duration(seconds: 15)
       ..options.receiveTimeout = const Duration(seconds: 15)
       ..options.headers = {
@@ -31,7 +40,7 @@ class ApiClient {
   final TokenStore _tokenStorage;
   final Dio _dio;
 
-  String get baseUrl => _apiBaseUrl;
+  String get baseUrl => apiBaseUrl;
 
   Future<ApiResponse<T>> get<T>(
     String path, {

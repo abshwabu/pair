@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pair/core/theme/app_theme.dart';
 
 /// Primary action button with loading state.
 class PrimaryButton extends StatelessWidget {

@@ -50,6 +50,8 @@ class LoginFormNotifier extends StateNotifier<LoginFormState> {
   void setPassword(String value) =>
       state = state.copyWith(password: value, clearErrors: true);
 
+  void clearError() => state = state.copyWith(clearErrors: true);
+
   String? _validate() {
     String? emailError;
     String? passwordError;

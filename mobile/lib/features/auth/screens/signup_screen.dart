@@ -40,7 +40,7 @@ class SignupScreen extends ConsumerWidget {
               if (form.error != null) ...[
                 ErrorBanner(
                   message: form.error!,
-                  onDismiss: () => notifier.setName(form.name),
+                  onDismiss: notifier.clearError,
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
