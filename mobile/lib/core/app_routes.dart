@@ -42,6 +42,9 @@ abstract final class AppRoutes {
 
   static String streakDetailPath(String podId) => '$streakDetail?podId=$podId';
 
+  static String streakRecoveryPath(String podId) =>
+      '$streakRecovery?podId=$podId';
+
   static String reportFormPath(String podId) => '$reportForm?podId=$podId';
 
   static String? podIdFrom(GoRouterState state) => state.uri.queryParameters['podId'];

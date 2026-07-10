@@ -10,6 +10,7 @@ use App\Services\NotificationService;
 use App\Services\StreakService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class CheckInController extends Controller
@@ -77,17 +78,40 @@ class CheckInController extends Controller
         $this->streakService->recalculateAfterCheckIn($pod);
         $this->notifyPartnersWhoHaveNotCheckedIn($pod, $request->user()->id, $today);
 
-        return $this->success($this->formatCheckIn($checkIn), null, 201);
+        return $this->success(
+            $this->formatCheckIn($checkIn),
+            [
+                'streak' => $this->streakService->streakSummary($pod, $request->user()->id),
+            ],
+            201
+        );
     }
 
     /**
      * GET /api/v1/pods/{pod}/streak
      */
-    public function streak(Pod $pod): JsonResponse
+    public function streak(Request $request, Pod $pod): JsonResponse
     {
         Gate::authorize('view', $pod);
 
-        return $this->success($this->streakService->streakSummary($pod));
+        return $this->success(
+            $this->streakService->streakSummary($pod, $request->user()->id)
+        );
+    }
+
+    /**
+     * POST /api/v1/pods/{pod}/nudge
+     */
+    public function nudge(Pod $pod): JsonResponse
+    {
+        Gate::authorize('view', $pod);
+
+        $user = request()->user();
+        $today = $this->streakService->todayUtc()->toDateString();
+
+        $this->notifyPartnersWhoHaveNotCheckedIn($pod, $user->id, $today);
+
+        return $this->success(['sent' => true]);
     }
 
     /**

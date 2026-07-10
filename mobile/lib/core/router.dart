@@ -15,6 +15,8 @@ import 'package:pair/features/onboarding/screens/matching_prefs_screen.dart';
 import 'package:pair/features/onboarding/screens/profile_setup_screen.dart';
 import 'package:pair/features/pods/screens/pod_home_screen.dart';
 import 'package:pair/features/pods/screens/pod_settings_screen.dart';
+import 'package:pair/features/checkins/screens/streak_detail_screen.dart';
+import 'package:pair/features/checkins/screens/streak_recovery_screen.dart';
 import 'package:pair/features/chat/screens/chat_screen.dart';
 import 'package:pair/features/todos/screens/todo_detail_screen.dart';
 import 'package:pair/features/todos/screens/todo_list_screen.dart';
@@ -156,14 +158,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.streakDetail,
         name: 'streak-detail',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'streak-detail'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'streak-detail');
+          }
+          return StreakDetailScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.streakRecovery,
         name: 'streak-recovery',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'streak-recovery'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'streak-recovery');
+          }
+          return StreakRecoveryScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.profile,

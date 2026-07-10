@@ -110,10 +110,21 @@ class StreakService
         );
     }
 
+    public function userCheckedInOn(Pod $pod, string $userId, ?CarbonInterface $date = null): bool
+    {
+        $date ??= $this->todayUtc();
+
+        return CheckIn::query()
+            ->where('pod_id', $pod->id)
+            ->where('user_id', $userId)
+            ->whereDate('check_in_date', $date->toDateString())
+            ->exists();
+    }
+
     /**
      * @return array<string, mixed>
      */
-    public function streakSummary(Pod $pod): array
+    public function streakSummary(Pod $pod, ?string $userId = null): array
     {
         $streak = $this->getOrCreateStreak($pod);
         $today = $this->todayUtc();
@@ -123,6 +134,9 @@ class StreakService
             'best_streak' => $streak->best_streak,
             'last_check_in_date' => $streak->last_check_in_date?->toDateString(),
             'both_checked_in_today' => $this->bothActiveMembersCheckedInOn($pod, $today),
+            'checked_in_today' => $userId !== null
+                ? $this->userCheckedInOn($pod, $userId, $today)
+                : false,
         ];
     }
 }

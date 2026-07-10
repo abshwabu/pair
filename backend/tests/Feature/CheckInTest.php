@@ -49,6 +49,7 @@ class CheckInTest extends TestCase
                     'best_streak' => 0,
                     'last_check_in_date' => null,
                     'both_checked_in_today' => false,
+                    'checked_in_today' => true,
                 ],
             ]);
 
@@ -174,6 +175,48 @@ class CheckInTest extends TestCase
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.note', 'Newer')
             ->assertJsonPath('data.1.note', 'Older');
+    }
+
+    public function test_streak_reports_checked_in_today_for_current_user(): void
+    {
+        Carbon::setTestNow('2026-07-10 12:00:00');
+
+        [$pod, $user1, $user2] = $this->createActivePodPair();
+
+        $this->actingAs($user1, 'sanctum')
+            ->getJson("/api/v1/pods/{$pod->id}/streak")
+            ->assertJsonPath('data.checked_in_today', false);
+
+        $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/check-ins")
+            ->assertStatus(201)
+            ->assertJsonPath('meta.streak.checked_in_today', true)
+            ->assertJsonPath('meta.streak.current_streak', 0);
+
+        $this->actingAs($user2, 'sanctum')
+            ->getJson("/api/v1/pods/{$pod->id}/streak")
+            ->assertJsonPath('data.checked_in_today', false);
+
+        $this->actingAs($user2, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/check-ins")
+            ->assertStatus(201)
+            ->assertJsonPath('meta.streak.both_checked_in_today', true)
+            ->assertJsonPath('meta.streak.current_streak', 1);
+    }
+
+    public function test_member_can_nudge_partner(): void
+    {
+        Queue::fake();
+        Carbon::setTestNow('2026-07-10 12:00:00');
+
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/nudge")
+            ->assertStatus(200)
+            ->assertJsonPath('data.sent', true);
+
+        Queue::assertPushed(SendFcmNotificationJob::class);
     }
 
     public function test_non_member_cannot_access_check_ins(): void

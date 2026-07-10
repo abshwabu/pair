@@ -60,6 +60,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/pods/{pod}/check-ins', [CheckInController::class, 'index']);
         Route::post('/pods/{pod}/check-ins', [CheckInController::class, 'store']);
         Route::get('/pods/{pod}/streak', [CheckInController::class, 'streak']);
+        Route::post('/pods/{pod}/nudge', [CheckInController::class, 'nudge']);
 
         Route::post('/reports', [ReportController::class, 'store']);
         Route::middleware('admin')->group(function () {
