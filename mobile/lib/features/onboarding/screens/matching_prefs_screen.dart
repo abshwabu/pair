@@ -138,13 +138,17 @@ class MatchingPrefsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
                 label: targetGoal != null
-                    ? 'Match with ${targetGoal.owner?.name ?? 'partner'}'
+                    ? 'Send match request'
                     : 'Find my partner',
                 isLoading: form.isLoading,
                 onPressed: () async {
                   final success = await notifier.submit();
                   if (!context.mounted || !success) return;
-                  context.push(AppRoutes.findingMatch);
+                  if (targetGoal != null) {
+                    context.push(AppRoutes.matchRequestPending);
+                  } else {
+                    context.push(AppRoutes.findingMatch);
+                  }
                 },
               ),
             ],

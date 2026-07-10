@@ -6,6 +6,7 @@ import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/home_back_scope.dart';
 import 'package:pair/core/widgets/main_bottom_nav.dart';
 import 'package:pair/core/widgets/pair_app_bar.dart';
+import 'package:pair/features/matching/providers/partner_match_request_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_category_provider.dart';
 
 class GoalCategoryScreen extends ConsumerWidget {
@@ -16,6 +17,9 @@ class GoalCategoryScreen extends ConsumerWidget {
     final state = ref.watch(goalCategoryProvider);
     final notifier = ref.read(goalCategoryProvider.notifier);
     final theme = Theme.of(context);
+
+    final incomingAsync = ref.watch(incomingPartnerMatchRequestsProvider);
+    final pendingCount = incomingAsync.asData?.value.length ?? 0;
 
     return HomeBackScope(
       child: Scaffold(
@@ -41,6 +45,36 @@ class GoalCategoryScreen extends ConsumerWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (pendingCount > 0) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => context.push(AppRoutes.matchRequests),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.mail_outline,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                pendingCount == 1
+                                    ? 'You have 1 match request'
+                                    : 'You have $pendingCount match requests',
+                                style: theme.textTheme.titleSmall,
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 Expanded(
                   child: GridView.count(

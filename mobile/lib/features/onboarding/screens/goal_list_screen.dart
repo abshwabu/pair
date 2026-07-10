@@ -225,7 +225,7 @@ class GoalListScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: _GoalCard(
                             goal: goal,
-                            actionLabel: 'Tap to match with this person',
+                            actionLabel: 'Tap to send a match request',
                             onTap: () => _onCommunityGoalTap(
                               context,
                               ref,

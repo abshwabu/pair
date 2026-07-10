@@ -7,6 +7,8 @@ import 'package:pair/core/widgets/route_stub_screen.dart';
 import 'package:pair/features/auth/screens/login_screen.dart';
 import 'package:pair/features/auth/screens/signup_screen.dart';
 import 'package:pair/features/auth/screens/splash_screen.dart';
+import 'package:pair/features/matching/screens/match_request_pending_screen.dart';
+import 'package:pair/features/matching/screens/match_requests_screen.dart';
 import 'package:pair/features/matching/screens/finding_match_screen.dart';
 import 'package:pair/features/matching/screens/match_found_screen.dart';
 import 'package:pair/features/onboarding/screens/goal_category_screen.dart';
@@ -93,6 +95,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.findingMatch,
         name: 'finding-match',
         builder: (context, state) => const FindingMatchScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.matchRequestPending,
+        name: 'match-request-pending',
+        builder: (context, state) => const MatchRequestPendingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.matchRequests,
+        name: 'match-requests',
+        builder: (context, state) => const MatchRequestsScreen(),
       ),
       GoRoute(
         path: AppRoutes.matchFound,

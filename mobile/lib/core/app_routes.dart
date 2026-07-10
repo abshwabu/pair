@@ -11,6 +11,8 @@ abstract final class AppRoutes {
   static const goalDetail = '/goal-detail';
   static const matchingPrefs = '/matching-prefs';
   static const findingMatch = '/finding-match';
+  static const matchRequestPending = '/match-request-pending';
+  static const matchRequests = '/match-requests';
   static const matchFound = '/match-found';
   static const podHome = '/pod-home';
   static const podSettings = '/pod-settings';
@@ -71,6 +73,8 @@ abstract final class AppRoutes {
     goalDetail,
     matchingPrefs,
     findingMatch,
+    matchRequestPending,
+    matchRequests,
     matchFound,
     podHome,
     podSettings,

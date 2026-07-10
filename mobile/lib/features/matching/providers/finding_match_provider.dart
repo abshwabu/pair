@@ -75,7 +75,6 @@ class FindingMatchNotifier extends StateNotifier<FindingMatchState> {
     _started = true;
 
     final goalId = _ref.read(onboardingSessionProvider).createdGoalId;
-    final targetGoalId = _ref.read(onboardingSessionProvider).targetGoalId;
     if (goalId == null) {
       state = state.copyWith(
         isStarting: false,
@@ -96,18 +95,7 @@ class FindingMatchNotifier extends StateNotifier<FindingMatchState> {
       final request = await _ref.read(matchingServiceProvider).createRequest(
             goalId: goalId,
             timezoneToleranceHours: timezoneToleranceHours,
-            targetGoalId: targetGoalId,
           );
-
-      if (request.isMatched && request.podId != null) {
-        state = state.copyWith(
-          isStarting: false,
-          isPolling: false,
-          requestId: request.id,
-          matchedPodId: request.podId,
-        );
-        return;
-      }
 
       state = state.copyWith(
         isStarting: false,
