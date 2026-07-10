@@ -6,6 +6,7 @@ use App\Events\MessageSent;
 use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateMessageRequest;
+use App\Http\Requests\UploadChatAttachmentRequest;
 use App\Models\Message;
 use App\Models\Pod;
 use App\Models\User;
@@ -15,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 
 class MessageController extends Controller
 {
@@ -81,6 +83,20 @@ class MessageController extends Controller
         UserTyping::dispatch($pod->id, $request->user());
 
         return $this->success(['message' => 'Typing indicator sent.']);
+    }
+
+    /**
+     * POST /api/v1/pods/{pod}/messages/attachments
+     */
+    public function uploadAttachment(UploadChatAttachmentRequest $request, Pod $pod): JsonResponse
+    {
+        Gate::authorize('view', $pod);
+
+        $file = $request->file('attachment');
+        $path = $file->store("chat-attachments/{$pod->id}", 's3');
+        $url = Storage::disk('s3')->url($path);
+
+        return $this->success(['attachment_url' => $url], null, 201);
     }
 
     /**

@@ -54,6 +54,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/pods/{pod}/messages', [MessageController::class, 'index']);
         Route::post('/pods/{pod}/messages', [MessageController::class, 'store']);
+        Route::post('/pods/{pod}/messages/attachments', [MessageController::class, 'uploadAttachment']);
         Route::post('/pods/{pod}/typing', [MessageController::class, 'typing']);
 
         Route::get('/pods/{pod}/check-ins', [CheckInController::class, 'index']);
