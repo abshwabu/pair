@@ -56,7 +56,7 @@ class GoalCategoryScreen extends ConsumerWidget {
                       child: InkWell(
                         onTap: () {
                           notifier.selectCategory(category.id);
-                          context.go(AppRoutes.goalDetail);
+                          context.go(AppRoutes.goalList);
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.md),

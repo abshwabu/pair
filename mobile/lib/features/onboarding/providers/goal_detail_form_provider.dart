@@ -64,6 +64,8 @@ class GoalDetailFormNotifier extends StateNotifier<GoalDetailFormState> {
 
   void clearError() => state = state.copyWith(clearErrors: true);
 
+  void reset() => state = const GoalDetailFormState();
+
   bool _validate() {
     String? titleError;
     String? targetDescriptionError;

@@ -11,6 +11,7 @@ import 'package:pair/features/matching/screens/finding_match_screen.dart';
 import 'package:pair/features/matching/screens/match_found_screen.dart';
 import 'package:pair/features/onboarding/screens/goal_category_screen.dart';
 import 'package:pair/features/onboarding/screens/goal_detail_screen.dart';
+import 'package:pair/features/onboarding/screens/goal_list_screen.dart';
 import 'package:pair/features/onboarding/screens/matching_prefs_screen.dart';
 import 'package:pair/features/onboarding/screens/profile_setup_screen.dart';
 import 'package:pair/features/pods/screens/pod_home_screen.dart';
@@ -72,6 +73,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.goalCategory,
         name: 'goal-category',
         builder: (context, state) => const GoalCategoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.goalList,
+        name: 'goal-list',
+        builder: (context, state) => const GoalListScreen(),
       ),
       GoRoute(
         path: AppRoutes.goalDetail,

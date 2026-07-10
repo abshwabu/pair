@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const signup = '/signup';
   static const profileSetup = '/profile-setup';
   static const goalCategory = '/goal-category';
+  static const goalList = '/goal-list';
   static const goalDetail = '/goal-detail';
   static const matchingPrefs = '/matching-prefs';
   static const findingMatch = '/finding-match';
@@ -66,6 +67,7 @@ abstract final class AppRoutes {
     signup,
     profileSetup,
     goalCategory,
+    goalList,
     goalDetail,
     matchingPrefs,
     findingMatch,

@@ -32,6 +32,21 @@ class GoalService {
 
   final ApiClient _api;
 
+  Future<List<GoalModel>> listGoals({String? category}) async {
+    final response = await _api.get<List<dynamic>>(
+      '/goals',
+      fromJsonT: (json) => (json as List).toList(),
+    );
+
+    final goals = (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(GoalModel.fromJson)
+        .toList();
+
+    if (category == null) return goals;
+    return goals.where((goal) => goal.category == category).toList();
+  }
+
   Future<GoalModel> createGoal({
     required String category,
     required String title,

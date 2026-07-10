@@ -41,7 +41,7 @@ class _GoalDetailScreenState extends ConsumerState<GoalDetailScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Goal details')),
+      appBar: AppBar(title: const Text('Create goal')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),

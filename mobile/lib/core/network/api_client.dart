@@ -185,6 +185,14 @@ class ApiClient {
       }
     }
 
+    if (statusCode != null && statusCode >= 500) {
+      return ApiException(
+        message: 'Something went wrong on the server. Please try again.',
+        code: 'server_error',
+        statusCode: statusCode,
+      );
+    }
+
     return ApiException(
       message: e.message ?? 'Network request failed',
       code: 'network_error',
