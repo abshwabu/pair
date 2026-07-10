@@ -7,6 +7,7 @@ use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateMessageRequest;
 use App\Http\Requests\UploadChatAttachmentRequest;
+use App\Support\UploadStorage;
 use App\Models\Message;
 use App\Models\Pod;
 use App\Models\User;
@@ -16,7 +17,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 
 class MessageController extends Controller
 {
@@ -93,10 +93,9 @@ class MessageController extends Controller
         Gate::authorize('view', $pod);
 
         $file = $request->file('attachment');
-        $path = $file->store("chat-attachments/{$pod->id}", 's3');
-        $url = Storage::disk('s3')->url($path);
+        $upload = UploadStorage::storePublicUrl($file, "chat-attachments/{$pod->id}");
 
-        return $this->success(['attachment_url' => $url], null, 201);
+        return $this->success(['attachment_url' => $upload['url']], null, 201);
     }
 
     /**

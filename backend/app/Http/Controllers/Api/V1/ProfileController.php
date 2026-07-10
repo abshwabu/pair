@@ -8,11 +8,11 @@ use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UploadAvatarRequest;
 use App\Services\AccountDeletionService;
+use App\Support\UploadStorage;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -49,15 +49,10 @@ class ProfileController extends Controller
         $user = $request->user();
         $file = $request->file('avatar');
 
-        // Store file under avatars/{user_id}/
-        $path = $file->store("avatars/{$user->id}", 's3');
+        $upload = UploadStorage::storePublicUrl($file, "avatars/{$user->id}");
 
-        // Retrieve public URL
-        $url = Storage::disk('s3')->url($path);
-
-        // Update user model
         $user->update([
-            'avatar_url' => $url,
+            'avatar_url' => $upload['url'],
         ]);
 
         return $this->success($user);

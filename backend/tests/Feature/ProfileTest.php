@@ -107,7 +107,7 @@ class ProfileTest extends TestCase
      */
     public function test_successful_avatar_upload(): void
     {
-        Storage::fake('s3');
+        Storage::fake('public');
 
         $user = User::create([
             'name' => 'John Doe',
@@ -136,8 +136,8 @@ class ProfileTest extends TestCase
         $path = ltrim($path, '/');
         // Strip out 'storage/' if it was prepended by local mock URL driver
         $path = preg_replace('/^storage\//', '', $path);
-        
-        Storage::disk('s3')->assertExists($path);
+
+        Storage::disk('public')->assertExists($path);
     }
 
     public function test_update_password_with_valid_current_password(): void
@@ -250,7 +250,7 @@ class ProfileTest extends TestCase
      */
     public function test_invalid_avatar_file_type_rejected(): void
     {
-        Storage::fake('s3');
+        Storage::fake('public');
 
         $user = User::create([
             'name' => 'John Doe',
@@ -282,7 +282,7 @@ class ProfileTest extends TestCase
      */
     public function test_oversized_avatar_file_rejected(): void
     {
-        Storage::fake('s3');
+        Storage::fake('public');
 
         $user = User::create([
             'name' => 'John Doe',
