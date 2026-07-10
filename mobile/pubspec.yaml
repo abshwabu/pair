@@ -21,6 +21,7 @@ dependencies:
 
   # HTTP client
   dio: ^5.7.0
+  http: ^1.2.2
 
   # Secure token storage
   flutter_secure_storage: ^9.2.4
@@ -29,6 +30,7 @@ dependencies:
   image_picker: ^1.1.2
   flutter_timezone: ^4.1.0
   shared_preferences: ^2.5.3
+  dart_pusher_channels: ^1.2.3
 
 dev_dependencies:
   flutter_test:
