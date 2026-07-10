@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\GoalController;
+use App\Http\Controllers\Api\V1\MatchingController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,5 +28,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/goals/{goal}', [GoalController::class, 'show']);
         Route::patch('/goals/{goal}', [GoalController::class, 'update']);
         Route::delete('/goals/{goal}', [GoalController::class, 'destroy']);
+
+        Route::post('/matching/request', [MatchingController::class, 'store']);
+        Route::get('/matching/request/{podRequest}', [MatchingController::class, 'show']);
+        Route::delete('/matching/request/{podRequest}', [MatchingController::class, 'destroy']);
     });
 });
