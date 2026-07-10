@@ -8,6 +8,14 @@ class ProfileService {
 
   final ApiClient _api;
 
+  Future<UserModel> getProfile() async {
+    final response = await _api.get<Map<String, dynamic>>(
+      '/profile',
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+    return UserModel.fromJson(response.data!);
+  }
+
   Future<UserModel> updateProfile({
     String? name,
     String? timezone,
@@ -39,6 +47,37 @@ class ProfileService {
       fromJsonT: (json) => json as Map<String, dynamic>,
     );
     return UserModel.fromJson(response.data!);
+  }
+
+  Future<void> updateFcmToken(String token) async {
+    await _api.patch<Map<String, dynamic>>(
+      '/profile/fcm-token',
+      data: {'fcm_token': token},
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    await _api.patch<Map<String, dynamic>>(
+      '/profile/password',
+      data: {
+        'current_password': currentPassword,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+      },
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> deleteAccount() async {
+    await _api.delete<Map<String, dynamic>>(
+      '/profile',
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
   }
 }
 

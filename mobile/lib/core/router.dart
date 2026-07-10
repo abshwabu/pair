@@ -15,6 +15,12 @@ import 'package:pair/features/onboarding/screens/matching_prefs_screen.dart';
 import 'package:pair/features/onboarding/screens/profile_setup_screen.dart';
 import 'package:pair/features/pods/screens/pod_home_screen.dart';
 import 'package:pair/features/pods/screens/pod_settings_screen.dart';
+import 'package:pair/features/account/screens/account_settings_screen.dart';
+import 'package:pair/features/account/screens/blocked_users_screen.dart';
+import 'package:pair/features/account/screens/notification_settings_screen.dart';
+import 'package:pair/features/account/screens/profile_edit_screen.dart';
+import 'package:pair/features/account/screens/profile_screen.dart';
+import 'package:pair/features/account/screens/report_form_screen.dart';
 import 'package:pair/features/checkins/screens/streak_detail_screen.dart';
 import 'package:pair/features/checkins/screens/streak_recovery_screen.dart';
 import 'package:pair/features/chat/screens/chat_screen.dart';
@@ -180,32 +186,41 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         name: 'profile',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'profile'),
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileEdit,
+        name: 'profile-edit',
+        builder: (context, state) => const ProfileEditScreen(),
       ),
       GoRoute(
         path: AppRoutes.notificationSettings,
         name: 'notification-settings',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'notification-settings'),
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.blockedUsers,
         name: 'blocked-users',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'blocked-users'),
+        builder: (context, state) => const BlockedUsersScreen(),
       ),
       GoRoute(
         path: AppRoutes.reportForm,
         name: 'report-form',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'report-form'),
+        builder: (context, state) {
+          final reportedUserId = AppRoutes.reportedUserIdFrom(state);
+          if (reportedUserId == null) {
+            return const RouteStubScreen(routeName: 'report-form');
+          }
+          return ReportFormScreen(
+            reportedUserId: reportedUserId,
+            podId: AppRoutes.podIdFrom(state),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.accountSettings,
         name: 'account-settings',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'account-settings'),
+        builder: (context, state) => const AccountSettingsScreen(),
       ),
     ],
   );

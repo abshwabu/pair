@@ -6,6 +6,7 @@ import 'package:pair/core/auth_state.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/core/widgets/primary_button.dart';
+import 'package:pair/core/notifications/push_notification_service.dart';
 import 'package:pair/features/auth/providers/signup_form_provider.dart';
 
 class SignupScreen extends ConsumerWidget {
@@ -90,6 +91,10 @@ class SignupScreen extends ConsumerWidget {
                   final route = await notifier.submit();
                   if (!context.mounted || route == null) return;
                   notifyAuthChanged(ref);
+                  await ref
+                      .read(pushNotificationServiceProvider)
+                      .registerTokenIfAuthenticated();
+                  if (!context.mounted) return;
                   context.go(route);
                 },
               ),

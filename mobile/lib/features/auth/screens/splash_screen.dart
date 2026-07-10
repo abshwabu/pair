@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/auth_state.dart';
+import 'package:pair/core/notifications/push_notification_service.dart';
 import 'package:pair/features/auth/providers/splash_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -25,6 +27,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted || route == null) return;
 
     notifyAuthChanged(ref);
+    if (route != AppRoutes.login) {
+      await ref.read(pushNotificationServiceProvider).registerTokenIfAuthenticated();
+    }
+    if (!mounted) return;
     context.go(route);
   }
 

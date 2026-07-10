@@ -29,6 +29,11 @@ class PodHomeScreen extends ConsumerWidget {
         title: const Text('Your pod'),
         actions: [
           IconButton(
+            onPressed: () => context.push(AppRoutes.profile),
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+          ),
+          IconButton(
             onPressed: () => context.push(AppRoutes.podSettingsPath(podId)),
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Pod settings',

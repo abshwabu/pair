@@ -140,6 +140,111 @@ class ProfileTest extends TestCase
         Storage::disk('s3')->assertExists($path);
     }
 
+    public function test_update_password_with_valid_current_password(): void
+    {
+        $user = User::create([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => bcrypt('old-password'),
+            'timezone' => 'America/New_York',
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->patchJson('/api/v1/profile/password', [
+                'current_password' => 'old-password',
+                'password' => 'new-password-1',
+                'password_confirmation' => 'new-password-1',
+            ])
+            ->assertStatus(200);
+
+        $user->refresh();
+        $this->assertTrue(password_verify('new-password-1', $user->password));
+    }
+
+    public function test_update_password_rejects_invalid_current_password(): void
+    {
+        $user = User::create([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => bcrypt('old-password'),
+            'timezone' => 'America/New_York',
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->patchJson('/api/v1/profile/password', [
+                'current_password' => 'wrong-password',
+                'password' => 'new-password-1',
+                'password_confirmation' => 'new-password-1',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'invalid_current_password');
+    }
+
+    public function test_delete_profile_anonymizes_user_and_dissolves_active_pod(): void
+    {
+        $user1 = User::create([
+            'name' => 'User One',
+            'email' => 'user1@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $user2 = User::create([
+            'name' => 'User Two',
+            'email' => 'user2@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $pod = \App\Models\Pod::create([
+            'goal_category' => 'fitness',
+            'status' => 'active',
+            'capacity' => 2,
+        ]);
+
+        \App\Models\PodMember::create([
+            'pod_id' => $pod->id,
+            'user_id' => $user1->id,
+            'goal_id' => \App\Models\Goal::create([
+                'user_id' => $user1->id,
+                'category' => 'fitness',
+                'title' => 'Goal 1',
+                'target_description' => 'Desc',
+                'pace' => 'steady',
+            ])->id,
+            'joined_at' => now(),
+        ]);
+
+        \App\Models\PodMember::create([
+            'pod_id' => $pod->id,
+            'user_id' => $user2->id,
+            'goal_id' => \App\Models\Goal::create([
+                'user_id' => $user2->id,
+                'category' => 'fitness',
+                'title' => 'Goal 2',
+                'target_description' => 'Desc',
+                'pace' => 'steady',
+            ])->id,
+            'joined_at' => now(),
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->deleteJson('/api/v1/profile')
+            ->assertStatus(200)
+            ->assertJsonPath('data.message', 'Account deleted successfully.');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user1->id,
+            'name' => 'Deleted User',
+            'email' => 'deleted_'.$user1->id.'@pair.invalid',
+        ]);
+
+        $this->assertDatabaseHas('pods', [
+            'id' => $pod->id,
+            'status' => 'dissolved',
+        ]);
+    }
+
     /**
      * Test invalid avatar file type rejected.
      */

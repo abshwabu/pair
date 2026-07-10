@@ -6,7 +6,7 @@ import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
-import 'package:pair/features/pods/services/block_service.dart';
+import 'package:pair/features/account/services/block_service.dart';
 import 'package:pair/features/pods/services/pod_service.dart';
 
 class PodSettingsScreen extends ConsumerStatefulWidget {
@@ -126,6 +126,26 @@ class _PodSettingsScreenState extends ConsumerState<PodSettingsScreen> {
     }
   }
 
+  Future<void> _openReport() async {
+    final pod = await ref.read(podServiceProvider).getPod(widget.podId);
+    final currentUserId = await ref.read(currentUserProvider.future);
+    final partner = pod.activePartnerFor(currentUserId.id);
+
+    if (partner == null) {
+      if (!mounted) return;
+      setState(() => _error = 'Partner not found.');
+      return;
+    }
+
+    if (!mounted) return;
+    await context.push(
+      AppRoutes.reportFormPath(
+        podId: widget.podId,
+        reportedUserId: partner.user.id,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -173,11 +193,7 @@ class _PodSettingsScreenState extends ConsumerState<PodSettingsScreen> {
                     title: const Text('Report'),
                     subtitle: const Text('Report inappropriate behavior'),
                     enabled: !isBusy,
-                    onTap: isBusy
-                        ? null
-                        : () => context.push(
-                              AppRoutes.reportFormPath(widget.podId),
-                            ),
+                    onTap: isBusy ? null : _openReport,
                   ),
                   const Divider(height: 1),
                   ListTile(

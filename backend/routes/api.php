@@ -27,6 +27,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::patch('/profile', [ProfileController::class, 'update']);
+        Route::patch('/profile/password', [ProfileController::class, 'updatePassword']);
+        Route::delete('/profile', [ProfileController::class, 'destroy']);
         Route::patch('/profile/fcm-token', [ProfileController::class, 'updateFcmToken']);
         Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::get('/notifications', [NotificationController::class, 'index']);

@@ -12,6 +12,7 @@ class ProfileSetupFormState {
   const ProfileSetupFormState({
     this.name = '',
     this.timezone = 'UTC',
+    this.language = 'en',
     this.avatarPath,
     this.avatarUrl,
     this.isLoading = false,
@@ -22,6 +23,7 @@ class ProfileSetupFormState {
 
   final String name;
   final String timezone;
+  final String language;
   final String? avatarPath;
   final String? avatarUrl;
   final bool isLoading;
@@ -32,6 +34,7 @@ class ProfileSetupFormState {
   ProfileSetupFormState copyWith({
     String? name,
     String? timezone,
+    String? language,
     String? avatarPath,
     String? avatarUrl,
     bool? isLoading,
@@ -44,6 +47,7 @@ class ProfileSetupFormState {
     return ProfileSetupFormState(
       name: name ?? this.name,
       timezone: timezone ?? this.timezone,
+      language: language ?? this.language,
       avatarPath: clearAvatar ? null : avatarPath ?? this.avatarPath,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isLoading: isLoading ?? this.isLoading,
@@ -76,6 +80,7 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
       state = state.copyWith(
         name: user.name,
         timezone: timezone,
+        language: user.language ?? 'en',
         avatarUrl: user.avatarUrl,
         isInitializing: false,
       );
@@ -94,6 +99,9 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
 
   void setTimezone(String value) =>
       state = state.copyWith(timezone: value, clearErrors: true);
+
+  void setLanguage(String value) =>
+      state = state.copyWith(language: value, clearErrors: true);
 
   void setAvatarPath(String? path) =>
       state = state.copyWith(avatarPath: path, clearErrors: true);
@@ -122,6 +130,7 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
       await _profileService.updateProfile(
         name: state.name.trim(),
         timezone: state.timezone,
+        language: state.language,
       );
 
       state = state.copyWith(isLoading: false);

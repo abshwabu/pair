@@ -20,6 +20,7 @@ abstract final class AppRoutes {
   static const streakDetail = '/streak-detail';
   static const streakRecovery = '/streak-recovery';
   static const profile = '/profile';
+  static const profileEdit = '/profile/edit';
   static const notificationSettings = '/notification-settings';
   static const blockedUsers = '/blocked-users';
   static const reportForm = '/report-form';
@@ -45,9 +46,16 @@ abstract final class AppRoutes {
   static String streakRecoveryPath(String podId) =>
       '$streakRecovery?podId=$podId';
 
-  static String reportFormPath(String podId) => '$reportForm?podId=$podId';
+  static String reportFormPath({
+    required String podId,
+    required String reportedUserId,
+  }) =>
+      '$reportForm?podId=$podId&reportedUserId=$reportedUserId';
 
   static String? podIdFrom(GoRouterState state) => state.uri.queryParameters['podId'];
+
+  static String? reportedUserIdFrom(GoRouterState state) =>
+      state.uri.queryParameters['reportedUserId'];
 
   static String? todoIdFrom(GoRouterState state) =>
       state.uri.queryParameters['todoId'];
@@ -71,6 +79,7 @@ abstract final class AppRoutes {
     streakDetail,
     streakRecovery,
     profile,
+    profileEdit,
     notificationSettings,
     blockedUsers,
     reportForm,
