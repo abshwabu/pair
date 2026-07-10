@@ -15,6 +15,99 @@ import 'package:pair/features/pods/widgets/partner_avatar.dart';
 class GoalListScreen extends ConsumerWidget {
   const GoalListScreen({super.key});
 
+  Future<void> _onOwnGoalTap(
+    BuildContext context,
+    WidgetRef ref,
+    GoalModel goal,
+  ) async {
+    final sessionNotifier = ref.read(onboardingSessionProvider.notifier);
+    sessionNotifier.setCreatedGoalId(goal.id);
+    sessionNotifier.clearTargetGoalId();
+    context.push(AppRoutes.matchingPrefs);
+  }
+
+  Future<void> _onCommunityGoalTap(
+    BuildContext context,
+    WidgetRef ref,
+    GoalModel communityGoal,
+    List<GoalModel> myGoals,
+  ) async {
+    if (myGoals.isEmpty) {
+      final create = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Create your goal first'),
+          content: const Text(
+            'You need your own goal in this category before matching '
+            'with someone else.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Create goal'),
+            ),
+          ],
+        ),
+      );
+
+      if (create == true && context.mounted) {
+        ref.read(goalDetailFormProvider.notifier).reset();
+        context.push(AppRoutes.goalDetail);
+      }
+      return;
+    }
+
+    String? ownGoalId;
+    if (myGoals.length == 1) {
+      ownGoalId = myGoals.first.id;
+    } else if (context.mounted) {
+      ownGoalId = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Text(
+                  'Which of your goals do you want to match with?',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              ...myGoals.map(
+                (goal) => ListTile(
+                  title: Text(goal.title),
+                  subtitle: goal.targetDescription.isNotEmpty
+                      ? Text(
+                          goal.targetDescription,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      : null,
+                  onTap: () => Navigator.of(context).pop(goal.id),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (ownGoalId == null || !context.mounted) return;
+
+    final sessionNotifier = ref.read(onboardingSessionProvider.notifier);
+    sessionNotifier.setCreatedGoalId(ownGoalId);
+    sessionNotifier.setTargetGoalId(communityGoal.id);
+    context.push(AppRoutes.matchingPrefs);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final category = ref.watch(onboardingSessionProvider).selectedCategory;
@@ -35,7 +128,6 @@ class GoalListScreen extends ConsumerWidget {
         .firstOrNull;
 
     final listState = ref.watch(goalListProvider(category));
-    final sessionNotifier = ref.read(onboardingSessionProvider.notifier);
 
     return Scaffold(
       appBar: PairAppBar(
@@ -65,7 +157,7 @@ class GoalListScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Choose one of yours to match on, or browse what others are working toward.',
+                      'Choose one of yours to match on, or tap someone else\'s goal to pair with them.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -96,11 +188,8 @@ class GoalListScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: _GoalCard(
                             goal: goal,
-                            selectable: true,
-                            onTap: () {
-                              sessionNotifier.setCreatedGoalId(goal.id);
-                              context.push(AppRoutes.matchingPrefs);
-                            },
+                            actionLabel: 'Tap to match with anyone',
+                            onTap: () => _onOwnGoalTap(context, ref, goal),
                           ),
                         ),
                       ),
@@ -111,7 +200,7 @@ class GoalListScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Goals created by people looking for a partner in this category.',
+                      'People actively looking for a partner in this category.',
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -121,7 +210,8 @@ class GoalListScreen extends ConsumerWidget {
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.lg),
                           child: Text(
-                            'No community goals yet. Be the first to create one!',
+                            'No one is searching in this category yet. '
+                            'Create a goal and start matching!',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -135,7 +225,13 @@ class GoalListScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: _GoalCard(
                             goal: goal,
-                            selectable: false,
+                            actionLabel: 'Tap to match with this person',
+                            onTap: () => _onCommunityGoalTap(
+                              context,
+                              ref,
+                              goal,
+                              listState.myGoals,
+                            ),
                           ),
                         ),
                       ),
@@ -151,13 +247,13 @@ class GoalListScreen extends ConsumerWidget {
 class _GoalCard extends StatelessWidget {
   const _GoalCard({
     required this.goal,
-    required this.selectable,
-    this.onTap,
+    required this.actionLabel,
+    required this.onTap,
   });
 
   final GoalModel goal;
-  final bool selectable;
-  final VoidCallback? onTap;
+  final String actionLabel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +263,7 @@ class _GoalCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: selectable ? onTap : null,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
@@ -220,15 +316,13 @@ class _GoalCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              if (selectable) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Tap to use this goal',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                actionLabel,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
                 ),
-              ],
+              ),
             ],
           ),
         ),

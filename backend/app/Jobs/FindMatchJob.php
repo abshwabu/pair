@@ -2,12 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Pod;
-use App\Models\PodMember;
 use App\Models\PodRequest;
-use App\Services\BlockService;
-use App\Services\MatchingScorer;
-use App\Services\NotificationService;
+use App\Services\PodMatchingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +21,9 @@ class FindMatchJob implements ShouldQueue
         public int $attempt = 1,
     ) {}
 
-    public function handle(
-        MatchingScorer $scorer,
-        BlockService $blockService,
-        NotificationService $notificationService,
-    ): void
+    public function handle(PodMatchingService $matcher): void
     {
-        DB::transaction(function () use ($scorer, $blockService, $notificationService) {
+        DB::transaction(function () use ($matcher) {
             $request = PodRequest::query()
                 ->with(['goal', 'user'])
                 ->lockForUpdate()
@@ -41,80 +33,12 @@ class FindMatchJob implements ShouldQueue
                 return;
             }
 
-            $candidates = PodRequest::query()
-                ->with(['goal', 'user'])
-                ->where('status', 'open')
-                ->where('id', '!=', $request->id)
-                ->where('user_id', '!=', $request->user_id)
-                ->lockForUpdate()
-                ->get();
-
-            $bestCandidate = null;
-            $bestScore = 0;
-
-            foreach ($candidates as $candidate) {
-                if ($blockService->usersAreBlocked($request->user_id, $candidate->user_id)) {
-                    continue;
-                }
-
-                $score = $scorer->score($request, $candidate);
-
-                if ($scorer->meetsThreshold($score) && $score > $bestScore) {
-                    $bestScore = $score;
-                    $bestCandidate = $candidate;
-                }
-            }
-
-            if ($bestCandidate) {
-                $this->createMatch($request, $bestCandidate, $notificationService);
-
+            if ($matcher->tryMatchRequest($request)) {
                 return;
             }
 
             $this->requeueIfNeeded();
         });
-    }
-
-    private function createMatch(
-        PodRequest $request,
-        PodRequest $candidate,
-        NotificationService $notificationService,
-    ): void
-    {
-        $pod = Pod::create([
-            'goal_category' => $request->goal->category,
-            'status' => 'active',
-            'capacity' => 2,
-        ]);
-
-        $now = now();
-
-        PodMember::create([
-            'pod_id' => $pod->id,
-            'user_id' => $request->user_id,
-            'goal_id' => $request->goal_id,
-            'joined_at' => $now,
-        ]);
-
-        PodMember::create([
-            'pod_id' => $pod->id,
-            'user_id' => $candidate->user_id,
-            'goal_id' => $candidate->goal_id,
-            'joined_at' => $now,
-        ]);
-
-        $request->update(['status' => 'matched']);
-        $candidate->update(['status' => 'matched']);
-
-        $notificationService->send($request->user, 'match_found', [
-            'pod_id' => $pod->id,
-            'partner_id' => $candidate->user_id,
-        ]);
-
-        $notificationService->send($candidate->user, 'match_found', [
-            'pod_id' => $pod->id,
-            'partner_id' => $request->user_id,
-        ]);
     }
 
     private function requeueIfNeeded(): void

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Goal;
 use App\Models\Pod;
 use App\Models\PodMember;
+use App\Models\PodRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -131,6 +132,14 @@ class GoalTest extends TestCase
             'pace' => 'relaxed',
         ]);
 
+        PodRequest::create([
+            'user_id' => $user2->id,
+            'goal_id' => $communityGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
         $response = $this->actingAs($user1, 'sanctum')
             ->getJson('/api/v1/goals?scope=browse&category=fitness');
 
@@ -187,6 +196,14 @@ class GoalTest extends TestCase
             'user_id' => $user2->id,
             'goal_id' => $matchedGoal->id,
             'joined_at' => now(),
+        ]);
+
+        PodRequest::create([
+            'user_id' => $user2->id,
+            'goal_id' => $availableGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
         ]);
 
         $response = $this->actingAs($user1, 'sanctum')

@@ -137,6 +137,7 @@ class GoalController extends Controller
                 $query->whereNull('left_at')
                     ->whereHas('pod', fn ($podQuery) => $podQuery->where('status', 'active'));
             })
+            ->whereHas('podRequests', fn ($query) => $query->where('status', 'open'))
             ->latest()
             ->get();
 

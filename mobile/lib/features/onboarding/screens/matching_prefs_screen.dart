@@ -8,6 +8,9 @@ import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/onboarding/data/onboarding_options.dart';
 import 'package:pair/features/onboarding/providers/matching_prefs_form_provider.dart';
+import 'package:pair/features/onboarding/providers/onboarding_session_provider.dart';
+import 'package:pair/features/onboarding/providers/goal_list_provider.dart';
+import 'package:pair/features/onboarding/services/goal_service.dart';
 
 class MatchingPrefsScreen extends ConsumerWidget {
   const MatchingPrefsScreen({super.key});
@@ -16,7 +19,17 @@ class MatchingPrefsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final form = ref.watch(matchingPrefsFormProvider);
     final notifier = ref.read(matchingPrefsFormProvider.notifier);
+    final session = ref.watch(onboardingSessionProvider);
     final theme = Theme.of(context);
+
+    GoalModel? targetGoal;
+    final category = session.selectedCategory;
+    if (session.targetGoalId != null && category != null) {
+      final listState = ref.watch(goalListProvider(category));
+      targetGoal = listState.communityGoals
+          .where((goal) => goal.id == session.targetGoalId)
+          .firstOrNull;
+    }
 
     if (form.isInitializing) {
       return const Scaffold(
@@ -47,6 +60,33 @@ class MatchingPrefsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
+              if (targetGoal != null) ...[
+                Card(
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Matching with',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          targetGoal.owner?.name ?? 'Partner',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        Text(
+                          targetGoal.title,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               if (form.error != null) ...[
                 ErrorBanner(
                   message: form.error!,
@@ -97,7 +137,9 @@ class MatchingPrefsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
-                label: 'Find my partner',
+                label: targetGoal != null
+                    ? 'Match with ${targetGoal.owner?.name ?? 'partner'}'
+                    : 'Find my partner',
                 isLoading: form.isLoading,
                 onPressed: () async {
                   final success = await notifier.submit();

@@ -5,18 +5,23 @@ class OnboardingSession {
   const OnboardingSession({
     this.selectedCategory,
     this.createdGoalId,
+    this.targetGoalId,
   });
 
   final String? selectedCategory;
   final String? createdGoalId;
+  final String? targetGoalId;
 
   OnboardingSession copyWith({
     String? selectedCategory,
     String? createdGoalId,
+    String? targetGoalId,
+    bool clearTargetGoalId = false,
   }) {
     return OnboardingSession(
       selectedCategory: selectedCategory ?? this.selectedCategory,
       createdGoalId: createdGoalId ?? this.createdGoalId,
+      targetGoalId: clearTargetGoalId ? null : targetGoalId ?? this.targetGoalId,
     );
   }
 }
@@ -30,6 +35,14 @@ class OnboardingSessionNotifier extends StateNotifier<OnboardingSession> {
 
   void setCreatedGoalId(String goalId) {
     state = state.copyWith(createdGoalId: goalId);
+  }
+
+  void setTargetGoalId(String goalId) {
+    state = state.copyWith(targetGoalId: goalId);
+  }
+
+  void clearTargetGoalId() {
+    state = state.copyWith(clearTargetGoalId: true);
   }
 }
 

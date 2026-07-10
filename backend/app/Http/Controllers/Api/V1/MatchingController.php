@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateMatchingRequest;
 use App\Jobs\FindMatchJob;
+use App\Models\Goal;
 use App\Models\PodMember;
 use App\Models\PodRequest;
+use App\Services\PodMatchingService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class MatchingController extends Controller
@@ -18,7 +21,7 @@ class MatchingController extends Controller
     /**
      * POST /api/v1/matching/request
      */
-    public function store(CreateMatchingRequest $request): JsonResponse
+    public function store(CreateMatchingRequest $request, PodMatchingService $matcher): JsonResponse
     {
         $user = $request->user();
 
@@ -36,19 +39,70 @@ class MatchingController extends Controller
             );
         }
 
-        $podRequest = PodRequest::create([
-            'user_id' => $user->id,
-            'goal_id' => $request->validated('goal_id'),
-            'status' => 'open',
-            'timezone_tolerance_hours' => $request->validated('timezone_tolerance_hours'),
-            'language' => $user->language,
-        ]);
+        $targetGoalId = $request->validated('target_goal_id');
+
+        if ($targetGoalId !== null) {
+            $targetGoal = Goal::query()->find($targetGoalId);
+            $ownGoal = Goal::query()
+                ->where('id', $request->validated('goal_id'))
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (! $targetGoal || ! $ownGoal || $targetGoal->category !== $ownGoal->category) {
+                return $this->error(
+                    'That goal is not available to match with.',
+                    'target_unavailable',
+                    null,
+                    422
+                );
+            }
+        }
+
+        $podRequest = DB::transaction(function () use ($request, $user, $matcher, $targetGoalId) {
+            $podRequest = PodRequest::create([
+                'user_id' => $user->id,
+                'goal_id' => $request->validated('goal_id'),
+                'status' => 'open',
+                'timezone_tolerance_hours' => $request->validated('timezone_tolerance_hours'),
+                'language' => $user->language,
+            ]);
+
+            if ($targetGoalId !== null) {
+                $matched = $matcher->tryMatchRequest($podRequest, $targetGoalId);
+
+                if (! $matched) {
+                    $podRequest->update(['status' => 'cancelled']);
+
+                    return null;
+                }
+            }
+
+            return $podRequest->fresh();
+        });
+
+        if ($podRequest === null) {
+            return $this->error(
+                'This partner is not available to match right now. Check your timezone and language settings, or pick someone else.',
+                'target_unavailable',
+                null,
+                422
+            );
+        }
+
+        if ($podRequest->status === 'matched') {
+            return $this->success([
+                'id' => $podRequest->id,
+                'status' => $podRequest->status,
+                'pod_id' => $this->podIdForRequest($podRequest),
+            ], null, 201);
+        }
 
         FindMatchJob::dispatch($podRequest->id);
 
         return $this->success([
             'id' => $podRequest->id,
             'status' => $podRequest->status,
+            'pod_id' => null,
         ], null, 201);
     }
 
@@ -66,11 +120,7 @@ class MatchingController extends Controller
         ];
 
         if ($podRequest->status === 'matched') {
-            $data['pod_id'] = PodMember::query()
-                ->where('user_id', $podRequest->user_id)
-                ->where('goal_id', $podRequest->goal_id)
-                ->whereHas('pod', fn ($query) => $query->where('status', 'active'))
-                ->value('pod_id');
+            $data['pod_id'] = $this->podIdForRequest($podRequest);
         }
 
         return $this->success($data);
@@ -98,5 +148,14 @@ class MatchingController extends Controller
             'id' => $podRequest->id,
             'status' => $podRequest->status,
         ]);
+    }
+
+    private function podIdForRequest(PodRequest $podRequest): ?string
+    {
+        return PodMember::query()
+            ->where('user_id', $podRequest->user_id)
+            ->where('goal_id', $podRequest->goal_id)
+            ->whereHas('pod', fn ($query) => $query->where('status', 'active'))
+            ->value('pod_id');
     }
 }

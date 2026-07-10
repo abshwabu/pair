@@ -10,12 +10,14 @@ class MatchingService {
   Future<MatchingRequestModel> createRequest({
     required String goalId,
     required int timezoneToleranceHours,
+    String? targetGoalId,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/matching/request',
       data: {
         'goal_id': goalId,
         'timezone_tolerance_hours': timezoneToleranceHours,
+        if (targetGoalId != null) 'target_goal_id': targetGoalId,
       },
       fromJsonT: (json) => json as Map<String, dynamic>,
     );

@@ -24,6 +24,13 @@ class CreateMatchingRequest extends FormRequest
                 Rule::exists('goals', 'id')->where('user_id', $this->user()->id),
             ],
             'timezone_tolerance_hours' => ['required', 'integer', 'min:0', 'max:12'],
+            'target_goal_id' => [
+                'sometimes',
+                'uuid',
+                Rule::exists('goals', 'id')->where(function ($query) {
+                    $query->where('user_id', '!=', $this->user()->id);
+                }),
+            ],
         ];
     }
 }
