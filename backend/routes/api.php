@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
 use App\Http\Controllers\Api\V1\PodController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\TodoController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -37,5 +38,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/pods', [PodController::class, 'index']);
         Route::get('/pods/{pod}', [PodController::class, 'show']);
         Route::post('/pods/{pod}/leave', [PodController::class, 'leave']);
+
+        Route::get('/pods/{pod}/todos', [TodoController::class, 'index']);
+        Route::post('/pods/{pod}/todos', [TodoController::class, 'store']);
+        Route::patch('/pods/{pod}/todos/{todo}', [TodoController::class, 'update'])->scopeBindings();
+        Route::delete('/pods/{pod}/todos/{todo}', [TodoController::class, 'destroy'])->scopeBindings();
     });
 });
