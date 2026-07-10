@@ -1,3 +1,5 @@
+import 'package:go_router/go_router.dart';
+
 /// Central route path constants.
 abstract final class AppRoutes {
   static const splash = '/splash';
@@ -24,6 +26,22 @@ abstract final class AppRoutes {
   static const accountSettings = '/account-settings';
 
   static const publicRoutes = {splash, login, signup};
+
+  static String matchFoundPath(String podId) => '$matchFound?podId=$podId';
+
+  static String podHomePath(String podId) => '$podHome?podId=$podId';
+
+  static String podSettingsPath(String podId) => '$podSettings?podId=$podId';
+
+  static String todoListPath(String podId) => '$todoList?podId=$podId';
+
+  static String chatPath(String podId) => '$chat?podId=$podId';
+
+  static String streakDetailPath(String podId) => '$streakDetail?podId=$podId';
+
+  static String reportFormPath(String podId) => '$reportForm?podId=$podId';
+
+  static String? podIdFrom(GoRouterState state) => state.uri.queryParameters['podId'];
 
   static const allStubs = [
     splash,

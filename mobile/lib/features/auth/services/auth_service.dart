@@ -5,12 +5,14 @@ import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/storage/token_storage.dart';
 import 'package:pair/features/auth/models/auth_response.dart';
 import 'package:pair/features/auth/models/user_model.dart';
+import 'package:pair/features/pods/services/pod_service.dart';
 
 class AuthService {
-  AuthService(this._api, this._tokenStorage);
+  AuthService(this._api, this._tokenStorage, this._podService);
 
   final ApiClient _api;
   final TokenStore _tokenStorage;
+  final PodService _podService;
 
   Future<UserModel> me() async {
     final response = await _api.get<Map<String, dynamic>>(
@@ -69,8 +71,11 @@ class AuthService {
       rethrow;
     }
 
-    final hasActivePod = await _hasActivePod();
-    return hasActivePod ? AppRoutes.podHome : AppRoutes.goalCategory;
+    final activePodId = await _podService.activePodId();
+    if (activePodId != null) {
+      return AppRoutes.podHomePath(activePodId);
+    }
+    return AppRoutes.goalCategory;
   }
 
   Future<String> resolveSplashRoute() async {
@@ -79,26 +84,12 @@ class AuthService {
     }
     return resolvePostAuthRoute();
   }
-
-  Future<bool> _hasActivePod() async {
-    final response = await _api.get<List<dynamic>>(
-      '/pods',
-      fromJsonT: (json) => (json as List).toList(),
-    );
-
-    final pods = response.data ?? [];
-    return pods.any((pod) {
-      if (pod is Map<String, dynamic>) {
-        return pod['status'] == 'active';
-      }
-      return false;
-    });
-  }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(
     ref.watch(apiClientProvider),
     ref.watch(tokenStorageProvider),
+    ref.watch(podServiceProvider),
   );
 });

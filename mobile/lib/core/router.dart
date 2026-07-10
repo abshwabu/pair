@@ -7,10 +7,14 @@ import 'package:pair/core/widgets/route_stub_screen.dart';
 import 'package:pair/features/auth/screens/login_screen.dart';
 import 'package:pair/features/auth/screens/signup_screen.dart';
 import 'package:pair/features/auth/screens/splash_screen.dart';
+import 'package:pair/features/matching/screens/finding_match_screen.dart';
+import 'package:pair/features/matching/screens/match_found_screen.dart';
 import 'package:pair/features/onboarding/screens/goal_category_screen.dart';
 import 'package:pair/features/onboarding/screens/goal_detail_screen.dart';
 import 'package:pair/features/onboarding/screens/matching_prefs_screen.dart';
 import 'package:pair/features/onboarding/screens/profile_setup_screen.dart';
+import 'package:pair/features/pods/screens/pod_home_screen.dart';
+import 'package:pair/features/pods/screens/pod_settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ref.watch(routerRefreshProvider);
@@ -71,26 +75,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.findingMatch,
         name: 'finding-match',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'finding-match'),
+        builder: (context, state) => const FindingMatchScreen(),
       ),
       GoRoute(
         path: AppRoutes.matchFound,
         name: 'match-found',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'match-found'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'match-found');
+          }
+          return MatchFoundScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.podHome,
         name: 'pod-home',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'pod-home'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'pod-home');
+          }
+          return PodHomeScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.podSettings,
         name: 'pod-settings',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'pod-settings'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'pod-settings');
+          }
+          return PodSettingsScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.todoList,
