@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CheckInController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
 use App\Http\Controllers\Api\V1\MessageController;
@@ -48,5 +49,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/pods/{pod}/messages', [MessageController::class, 'index']);
         Route::post('/pods/{pod}/messages', [MessageController::class, 'store']);
         Route::post('/pods/{pod}/typing', [MessageController::class, 'typing']);
+
+        Route::get('/pods/{pod}/check-ins', [CheckInController::class, 'index']);
+        Route::post('/pods/{pod}/check-ins', [CheckInController::class, 'store']);
+        Route::get('/pods/{pod}/streak', [CheckInController::class, 'streak']);
     });
 });

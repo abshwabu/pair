@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('matching:sweep')->everyFiveMinutes();
+Schedule::command('streaks:reset-missed')->daily();
