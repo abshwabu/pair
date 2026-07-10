@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,5 +20,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::patch('/profile', [ProfileController::class, 'update']);
         Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']);
+
+        // Goals routes
+        Route::get('/goals', [GoalController::class, 'index']);
+        Route::post('/goals', [GoalController::class, 'store']);
+        Route::get('/goals/{goal}', [GoalController::class, 'show']);
+        Route::patch('/goals/{goal}', [GoalController::class, 'update']);
+        Route::delete('/goals/{goal}', [GoalController::class, 'destroy']);
     });
 });
