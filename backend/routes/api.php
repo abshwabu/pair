@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
+use App\Http\Controllers\Api\V1\PodController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,5 +33,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/matching/request', [MatchingController::class, 'store']);
         Route::get('/matching/request/{podRequest}', [MatchingController::class, 'show']);
         Route::delete('/matching/request/{podRequest}', [MatchingController::class, 'destroy']);
+
+        Route::get('/pods', [PodController::class, 'index']);
+        Route::get('/pods/{pod}', [PodController::class, 'show']);
+        Route::post('/pods/{pod}/leave', [PodController::class, 'leave']);
     });
 });
