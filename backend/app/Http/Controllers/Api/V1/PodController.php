@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pod;
+use App\Services\PodMembershipService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Gate;
 class PodController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private readonly PodMembershipService $podMembershipService) {}
 
     /**
      * GET /api/v1/pods
@@ -73,15 +76,10 @@ class PodController extends Controller
             ->whereNull('left_at')
             ->firstOrFail();
 
-        $membership->update(['left_at' => now()]);
-
-        $activeMemberCount = $pod->podMembers()->whereNull('left_at')->count();
-
-        if ($activeMemberCount < 2) {
-            $pod->update(['status' => 'dissolved']);
-        }
+        $this->podMembershipService->leave($pod, $request->user());
 
         $pod->refresh();
+        $membership->refresh();
 
         return $this->success([
             'pod_id' => $pod->id,

@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BlockController;
 use App\Http\Controllers\Api\V1\CheckInController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\PodController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\TodoController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,5 +55,15 @@ Route::prefix('v1')->group(function () {
         Route::get('/pods/{pod}/check-ins', [CheckInController::class, 'index']);
         Route::post('/pods/{pod}/check-ins', [CheckInController::class, 'store']);
         Route::get('/pods/{pod}/streak', [CheckInController::class, 'streak']);
+
+        Route::post('/reports', [ReportController::class, 'store']);
+        Route::middleware('admin')->group(function () {
+            Route::get('/reports', [ReportController::class, 'index']);
+            Route::patch('/reports/{report}', [ReportController::class, 'update']);
+        });
+
+        Route::get('/blocks', [BlockController::class, 'index']);
+        Route::post('/blocks', [BlockController::class, 'store']);
+        Route::delete('/blocks/{block}', [BlockController::class, 'destroy']);
     });
 });

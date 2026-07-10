@@ -2,9 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Jobs\FindMatchJob;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\PodRequest;
+use App\Services\BlockService;
 use App\Services\MatchingScorer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,9 +25,9 @@ class FindMatchJob implements ShouldQueue
         public int $attempt = 1,
     ) {}
 
-    public function handle(MatchingScorer $scorer): void
+    public function handle(MatchingScorer $scorer, BlockService $blockService): void
     {
-        DB::transaction(function () use ($scorer) {
+        DB::transaction(function () use ($scorer, $blockService) {
             $request = PodRequest::query()
                 ->with(['goal', 'user'])
                 ->lockForUpdate()
@@ -47,6 +49,10 @@ class FindMatchJob implements ShouldQueue
             $bestScore = 0;
 
             foreach ($candidates as $candidate) {
+                if ($blockService->usersAreBlocked($request->user_id, $candidate->user_id)) {
+                    continue;
+                }
+
                 $score = $scorer->score($request, $candidate);
 
                 if ($scorer->meetsThreshold($score) && $score > $bestScore) {

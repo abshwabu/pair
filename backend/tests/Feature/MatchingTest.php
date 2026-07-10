@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Jobs\FindMatchJob;
+use App\Models\Block;
 use App\Models\Goal;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\PodRequest;
 use App\Models\User;
+use App\Services\BlockService;
+use App\Services\MatchingScorer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -62,7 +65,7 @@ class MatchingTest extends TestCase
             'language' => 'en',
         ]);
 
-        (new FindMatchJob($request1->id))->handle(app(\App\Services\MatchingScorer::class));
+        $this->runFindMatchJob($request1->id);
 
         $this->assertDatabaseHas('pod_requests', [
             'id' => $request1->id,
@@ -77,7 +80,7 @@ class MatchingTest extends TestCase
             'language' => 'en',
         ]);
 
-        (new FindMatchJob($request2->id))->handle(app(\App\Services\MatchingScorer::class));
+        $this->runFindMatchJob($request2->id);
 
         $this->assertDatabaseHas('pod_requests', [
             'id' => $request1->id,
@@ -130,7 +133,7 @@ class MatchingTest extends TestCase
             'language' => 'es',
         ]);
 
-        (new FindMatchJob($request2->id))->handle(app(\App\Services\MatchingScorer::class));
+        $this->runFindMatchJob($request2->id);
 
         $this->assertDatabaseHas('pod_requests', ['id' => $request1->id, 'status' => 'open']);
         $this->assertDatabaseHas('pod_requests', ['id' => $request2->id, 'status' => 'open']);
@@ -352,6 +355,50 @@ class MatchingTest extends TestCase
             ->assertJsonPath('data.status', 'matched');
 
         $this->assertNotNull($pollResponse->json('data.pod_id'));
+    }
+
+    public function test_blocked_users_are_not_matched(): void
+    {
+        $user1 = $this->createUser('user1@example.com', 'UTC', 'en');
+        $user2 = $this->createUser('user2@example.com', 'UTC', 'en');
+
+        $goal1 = $this->createGoal($user1, 'fitness', 'steady');
+        $goal2 = $this->createGoal($user2, 'fitness', 'steady');
+
+        Block::create([
+            'user_id' => $user1->id,
+            'blocked_user_id' => $user2->id,
+        ]);
+
+        $request1 = PodRequest::create([
+            'user_id' => $user1->id,
+            'goal_id' => $goal1->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $request2 = PodRequest::create([
+            'user_id' => $user2->id,
+            'goal_id' => $goal2->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $this->runFindMatchJob($request2->id);
+
+        $this->assertDatabaseHas('pod_requests', ['id' => $request1->id, 'status' => 'open']);
+        $this->assertDatabaseHas('pod_requests', ['id' => $request2->id, 'status' => 'open']);
+        $this->assertDatabaseCount('pods', 0);
+    }
+
+    private function runFindMatchJob(string $podRequestId): void
+    {
+        (new FindMatchJob($podRequestId))->handle(
+            app(MatchingScorer::class),
+            app(BlockService::class),
+        );
     }
 
     private function createUser(
