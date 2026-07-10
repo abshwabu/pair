@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 
 /// Placeholder screen shown until feature screens are built out.
 class RouteStubScreen extends StatelessWidget {
@@ -19,8 +20,9 @@ class RouteStubScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(routeName),
+      appBar: PairAppBar(
+        title: routeName,
+        fallbackRoute: AppRoutes.splash,
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateGoalRequest;
 use App\Http\Requests\UpdateGoalRequest;
+use App\Models\Block;
 use App\Models\Goal;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +18,28 @@ class GoalController extends Controller
 
     /**
      * GET /api/v1/goals
+     *
+     * Query params:
+     * - category: filter by category slug
+     * - scope: "mine" (default) or "browse" (other users' discoverable goals)
      */
     public function index(Request $request): JsonResponse
     {
-        $goals = $request->user()->goals()->get();
+        $category = $request->query('category');
+        $scope = $request->query('scope', 'mine');
+
+        if ($scope === 'browse') {
+            return $this->success($this->browseGoals($request, $category));
+        }
+
+        $query = $request->user()->goals()->latest();
+
+        if (is_string($category) && $category !== '') {
+            $query->where('category', $category);
+        }
+
+        $goals = $query->get()->map(fn (Goal $goal) => $this->formatGoal($goal, true));
+
         return $this->success($goals);
     }
 
@@ -30,7 +49,8 @@ class GoalController extends Controller
     public function store(CreateGoalRequest $request): JsonResponse
     {
         $goal = $request->user()->goals()->create($request->validated());
-        return $this->success($goal, null, 201);
+
+        return $this->success($this->formatGoal($goal->fresh(), true), null, 201);
     }
 
     /**
@@ -84,6 +104,70 @@ class GoalController extends Controller
         $goal->delete();
 
         return $this->success(['message' => 'Goal deleted successfully.']);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function browseGoals(Request $request, ?string $category): array
+    {
+        if (! is_string($category) || $category === '') {
+            return [];
+        }
+
+        $userId = $request->user()->id;
+
+        $blockedUserIds = Block::query()
+            ->where('user_id', $userId)
+            ->pluck('blocked_user_id')
+            ->merge(
+                Block::query()
+                    ->where('blocked_user_id', $userId)
+                    ->pluck('user_id')
+            )
+            ->unique()
+            ->values();
+
+        $goals = Goal::query()
+            ->with('user:id,name,avatar_url')
+            ->where('category', $category)
+            ->where('user_id', '!=', $userId)
+            ->when($blockedUserIds->isNotEmpty(), fn ($query) => $query->whereNotIn('user_id', $blockedUserIds))
+            ->whereDoesntHave('podMembers', function ($query) {
+                $query->whereNull('left_at')
+                    ->whereHas('pod', fn ($podQuery) => $podQuery->where('status', 'active'));
+            })
+            ->latest()
+            ->get();
+
+        return $goals
+            ->map(fn (Goal $goal) => $this->formatGoal($goal, false))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatGoal(Goal $goal, bool $isMine): array
+    {
+        $goal->loadMissing('user:id,name,avatar_url');
+
+        return [
+            'id' => $goal->id,
+            'user_id' => $goal->user_id,
+            'category' => $goal->category,
+            'title' => $goal->title,
+            'target_description' => $goal->target_description,
+            'pace' => $goal->pace,
+            'is_mine' => $isMine,
+            'owner' => $goal->user ? [
+                'id' => $goal->user->id,
+                'name' => $goal->user->name,
+                'avatar_url' => $goal->user->avatar_url,
+            ] : null,
+            'created_at' => $goal->created_at?->toIso8601String(),
+        ];
     }
 
     /**

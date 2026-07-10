@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 
@@ -58,9 +59,9 @@ class _FindingMatchScreenState extends ConsumerState<FindingMatchScreen>
         findingMatchStatusMessages[state.statusMessageIndex];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Finding a match'),
-        automaticallyImplyLeading: false,
+      appBar: const PairAppBar(
+        title: 'Finding a match',
+        fallbackRoute: AppRoutes.matchingPrefs,
       ),
       body: SafeArea(
         child: Padding(
@@ -124,7 +125,7 @@ class _FindingMatchScreenState extends ConsumerState<FindingMatchScreen>
                     ? () async {
                         final cancelled = await notifier.cancel();
                         if (!context.mounted || !cancelled) return;
-                        context.go(AppRoutes.matchingPrefs);
+                        context.pop();
                       }
                     : () => context.go(AppRoutes.matchingPrefs),
               ),

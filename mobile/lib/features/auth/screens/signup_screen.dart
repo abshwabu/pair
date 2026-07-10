@@ -5,6 +5,7 @@ import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/auth_state.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/core/notifications/push_notification_service.dart';
 import 'package:pair/features/auth/providers/signup_form_provider.dart';
@@ -19,7 +20,10 @@ class SignupScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: const PairAppBar(
+        title: 'Create account',
+        fallbackRoute: AppRoutes.login,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),

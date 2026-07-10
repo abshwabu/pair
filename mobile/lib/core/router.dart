@@ -190,14 +190,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.profile,
-        name: 'profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.profileEdit,
         name: 'profile-edit',
         builder: (context, state) => const ProfileEditScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        name: 'profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.notificationSettings,

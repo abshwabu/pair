@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/checkins/providers/streak_provider.dart';
 
@@ -28,7 +29,10 @@ class _StreakRecoveryScreenState extends ConsumerState<StreakRecoveryScreen> {
 
     if (streakState.isLoading && !streakState.hasLoaded) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Streak recovery')),
+        appBar: PairAppBar(
+          title: 'Streak recovery',
+          fallbackRoute: AppRoutes.podHomePath(widget.podId),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -38,13 +42,19 @@ class _StreakRecoveryScreenState extends ConsumerState<StreakRecoveryScreen> {
         if (mounted) context.go(AppRoutes.podHomePath(widget.podId));
       });
       return Scaffold(
-        appBar: AppBar(title: const Text('Streak recovery')),
+        appBar: PairAppBar(
+          title: 'Streak recovery',
+          fallbackRoute: AppRoutes.podHomePath(widget.podId),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Streak recovery')),
+      appBar: PairAppBar(
+        title: 'Streak recovery',
+        fallbackRoute: AppRoutes.podHomePath(widget.podId),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),

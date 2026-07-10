@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/onboarding/providers/goal_detail_form_provider.dart';
+import 'package:pair/features/onboarding/providers/goal_list_provider.dart';
 import 'package:pair/features/onboarding/providers/onboarding_session_provider.dart';
 
 class GoalDetailScreen extends ConsumerStatefulWidget {
@@ -41,7 +43,10 @@ class _GoalDetailScreenState extends ConsumerState<GoalDetailScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create goal')),
+      appBar: PairAppBar(
+        title: 'Create goal',
+        fallbackRoute: AppRoutes.goalList,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -115,7 +120,17 @@ class _GoalDetailScreenState extends ConsumerState<GoalDetailScreen> {
                 onPressed: () async {
                   final success = await notifier.submit(category);
                   if (!context.mounted || !success) return;
-                  context.go(AppRoutes.matchingPrefs);
+                  if (category != null) {
+                    ref.invalidate(goalListProvider(category));
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Goal created — others in this category can now see it.',
+                      ),
+                    ),
+                  );
+                  context.pop();
                 },
               ),
             ],

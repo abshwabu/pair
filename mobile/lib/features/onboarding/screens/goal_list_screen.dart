@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/onboarding/providers/goal_category_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_detail_form_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_list_provider.dart';
 import 'package:pair/features/onboarding/providers/onboarding_session_provider.dart';
 import 'package:pair/features/onboarding/services/goal_service.dart';
+import 'package:pair/features/pods/widgets/partner_avatar.dart';
 
 class GoalListScreen extends ConsumerWidget {
   const GoalListScreen({super.key});
@@ -36,8 +38,9 @@ class GoalListScreen extends ConsumerWidget {
     final sessionNotifier = ref.read(onboardingSessionProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(categoryLabel ?? 'Your goals'),
+      appBar: PairAppBar(
+        title: categoryLabel ?? 'Your goals',
+        fallbackRoute: AppRoutes.goalCategory,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -62,7 +65,7 @@ class GoalListScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Choose one you already have, or create a new one if nothing fits.',
+                      'Choose one of yours to match on, or browse what others are working toward.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -72,43 +75,67 @@ class GoalListScreen extends ConsumerWidget {
                       ErrorBanner(message: listState.error!),
                       const SizedBox(height: AppSpacing.md),
                     ],
-                    if (listState.hasLoaded && listState.goals.isEmpty)
+                    Text('Your goals', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (listState.hasLoaded && listState.myGoals.isEmpty)
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.lg),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.flag_outlined,
-                                size: 40,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                'No goals in this category yet',
-                                style: theme.textTheme.titleMedium,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                'Tap Create goal to define one that fits you.',
-                                style: theme.textTheme.bodySmall,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                          child: Text(
+                            'No goals yet. Tap Create goal to add one others can discover.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       )
                     else
-                      ...listState.goals.map(
+                      ...listState.myGoals.map(
                         (goal) => Padding(
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: _GoalCard(
                             goal: goal,
+                            selectable: true,
                             onTap: () {
                               sessionNotifier.setCreatedGoalId(goal.id);
-                              context.go(AppRoutes.matchingPrefs);
+                              context.push(AppRoutes.matchingPrefs);
                             },
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'From others',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Goals created by people looking for a partner in this category.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (listState.hasLoaded &&
+                        listState.communityGoals.isEmpty)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Text(
+                            'No community goals yet. Be the first to create one!',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    else
+                      ...listState.communityGoals.map(
+                        (goal) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: _GoalCard(
+                            goal: goal,
+                            selectable: false,
                           ),
                         ),
                       ),
@@ -122,24 +149,44 @@ class GoalListScreen extends ConsumerWidget {
 }
 
 class _GoalCard extends StatelessWidget {
-  const _GoalCard({required this.goal, required this.onTap});
+  const _GoalCard({
+    required this.goal,
+    required this.selectable,
+    this.onTap,
+  });
 
   final GoalModel goal;
-  final VoidCallback onTap;
+  final bool selectable;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final owner = goal.owner;
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: selectable ? onTap : null,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (owner != null && !goal.isMine) ...[
+                Row(
+                  children: [
+                    PartnerAvatar(
+                      name: owner.name,
+                      avatarUrl: owner.avatarUrl,
+                      radius: 14,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(owner.name, style: theme.textTheme.labelMedium),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -169,8 +216,17 @@ class _GoalCard extends StatelessWidget {
                 Text(
                   goal.targetDescription,
                   style: theme.textTheme.bodySmall,
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (selectable) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Tap to use this goal',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ],
             ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/account/providers/notification_preferences_provider.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
@@ -14,13 +16,19 @@ class NotificationSettingsScreen extends ConsumerWidget {
 
     if (prefs.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Notification settings')),
+        appBar: const PairAppBar(
+          title: 'Notification settings',
+          fallbackRoute: AppRoutes.profile,
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification settings')),
+      appBar: const PairAppBar(
+        title: 'Notification settings',
+        fallbackRoute: AppRoutes.profile,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [

@@ -4,26 +4,30 @@ import 'package:pair/features/onboarding/services/goal_service.dart';
 
 class GoalListState {
   const GoalListState({
-    this.goals = const [],
+    this.myGoals = const [],
+    this.communityGoals = const [],
     this.isLoading = false,
     this.error,
     this.hasLoaded = false,
   });
 
-  final List<GoalModel> goals;
+  final List<GoalModel> myGoals;
+  final List<GoalModel> communityGoals;
   final bool isLoading;
   final String? error;
   final bool hasLoaded;
 
   GoalListState copyWith({
-    List<GoalModel>? goals,
+    List<GoalModel>? myGoals,
+    List<GoalModel>? communityGoals,
     bool? isLoading,
     String? error,
     bool? hasLoaded,
     bool clearError = false,
   }) {
     return GoalListState(
-      goals: goals ?? this.goals,
+      myGoals: myGoals ?? this.myGoals,
+      communityGoals: communityGoals ?? this.communityGoals,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : error ?? this.error,
       hasLoaded: hasLoaded ?? this.hasLoaded,
@@ -43,11 +47,15 @@ class GoalListNotifier extends StateNotifier<GoalListState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final goals = await _ref
-          .read(goalServiceProvider)
-          .listGoals(category: _category);
+      final service = _ref.read(goalServiceProvider);
+      final results = await Future.wait([
+        service.listMyGoals(category: _category),
+        service.browseGoals(category: _category),
+      ]);
+
       state = state.copyWith(
-        goals: goals,
+        myGoals: results[0],
+        communityGoals: results[1],
         isLoading: false,
         hasLoaded: true,
       );

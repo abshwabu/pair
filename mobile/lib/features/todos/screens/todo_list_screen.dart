@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/pods/models/pod_model.dart';
 import 'package:pair/features/todos/models/todo_model.dart';
@@ -29,7 +30,10 @@ class TodoListScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Todos')),
+      appBar: PairAppBar(
+        title: 'Todos',
+        fallbackRoute: AppRoutes.podHomePath(podId),
+      ),
       floatingActionButton: currentUserId == null
           ? null
           : FloatingActionButton(

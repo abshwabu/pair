@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/features/account/providers/blocked_users_provider.dart';
 import 'package:pair/features/pods/widgets/partner_avatar.dart';
@@ -15,7 +17,10 @@ class BlockedUsersScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Blocked users')),
+      appBar: const PairAppBar(
+        title: 'Blocked users',
+        fallbackRoute: AppRoutes.profile,
+      ),
       body: state.isLoading && !state.hasLoaded
           ? const Center(child: CircularProgressIndicator())
           : ListView(

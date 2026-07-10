@@ -5,6 +5,7 @@ import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/account/services/block_service.dart';
 import 'package:pair/features/pods/services/pod_service.dart';
@@ -152,7 +153,10 @@ class _PodSettingsScreenState extends ConsumerState<PodSettingsScreen> {
     final isBusy = _isLeaving || _isBlocking;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pod settings')),
+      appBar: PairAppBar(
+        title: 'Pod settings',
+        fallbackRoute: AppRoutes.podHomePath(widget.podId),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),

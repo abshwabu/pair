@@ -5,6 +5,7 @@ import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/auth_state.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/auth/services/auth_service.dart';
 import 'package:pair/features/onboarding/services/profile_service.dart';
@@ -139,7 +140,10 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     final isBusy = _isChangingPassword || _isDeleting;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Account settings')),
+      appBar: const PairAppBar(
+        title: 'Account settings',
+        fallbackRoute: AppRoutes.profile,
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),

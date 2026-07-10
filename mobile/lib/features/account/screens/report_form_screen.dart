@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/account/services/report_service.dart';
 
@@ -72,7 +74,12 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Report')),
+      appBar: PairAppBar(
+        title: 'Report',
+        fallbackRoute: widget.podId != null
+            ? AppRoutes.podSettingsPath(widget.podId!)
+            : AppRoutes.profile,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),

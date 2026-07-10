@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pair/core/app_routes.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/features/chat/providers/chat_provider.dart';
@@ -105,7 +107,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (args == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Chat')),
+        appBar: PairAppBar(
+          title: 'Chat',
+          fallbackRoute: AppRoutes.podHomePath(widget.podId),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -119,8 +124,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .name;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(partnerName != null ? 'Chat with $partnerName' : 'Chat'),
+      appBar: PairAppBar(
+        title: partnerName != null ? 'Chat with $partnerName' : 'Chat',
+        fallbackRoute: AppRoutes.podHomePath(widget.podId),
       ),
       body: Column(
         children: [

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/todos/providers/todos_provider.dart';
@@ -40,7 +42,10 @@ class TodoDetailScreen extends ConsumerWidget {
 
     if (todo == null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: PairAppBar(
+          title: 'Todo',
+          fallbackRoute: AppRoutes.todoListPath(podId),
+        ),
         body: Center(
           child: Text(
             'Todo not found.',
@@ -51,8 +56,9 @@ class TodoDetailScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Todo'),
+      appBar: PairAppBar(
+        title: 'Todo',
+        fallbackRoute: AppRoutes.todoListPath(podId),
         actions: [
           IconButton(
             onPressed: () => showTodoFormSheet(

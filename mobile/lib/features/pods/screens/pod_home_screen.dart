@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/home_back_scope.dart';
+import 'package:pair/core/widgets/main_bottom_nav.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/checkins/providers/streak_provider.dart';
 import 'package:pair/features/checkins/widgets/check_in_modal.dart';
 import 'package:pair/features/checkins/widgets/daily_check_in_card.dart';
@@ -24,28 +27,26 @@ class PodHomeScreen extends ConsumerWidget {
     final streakNotifier = ref.read(streakProvider(podId).notifier);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your pod'),
-        actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.profile),
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-          ),
-          IconButton(
-            onPressed: () => context.push(AppRoutes.podSettingsPath(podId)),
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Pod settings',
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.chatPath(podId)),
-        icon: const Icon(Icons.chat_bubble_outline),
-        label: const Text('Chat'),
-      ),
-      body: podAsync.when(
+    return HomeBackScope(
+      child: Scaffold(
+        appBar: PairAppBar(
+          title: 'Your pod',
+          showBack: false,
+          actions: [
+            IconButton(
+              onPressed: () => context.push(AppRoutes.podSettingsPath(podId)),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Pod settings',
+            ),
+          ],
+        ),
+        bottomNavigationBar: const MainBottomNav(currentTab: MainTab.home),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => context.push(AppRoutes.chatPath(podId)),
+          icon: const Icon(Icons.chat_bubble_outline),
+          label: const Text('Chat'),
+        ),
+        body: podAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(
           child: Padding(
@@ -169,6 +170,7 @@ class PodHomeScreen extends ConsumerWidget {
             ),
           );
         },
+        ),
       ),
     );
   }

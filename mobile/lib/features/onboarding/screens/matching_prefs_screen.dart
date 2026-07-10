@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/onboarding/data/onboarding_options.dart';
 import 'package:pair/features/onboarding/providers/matching_prefs_form_provider.dart';
@@ -24,7 +25,10 @@ class MatchingPrefsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Matching preferences')),
+      appBar: const PairAppBar(
+        title: 'Matching preferences',
+        fallbackRoute: AppRoutes.goalList,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -98,7 +102,7 @@ class MatchingPrefsScreen extends ConsumerWidget {
                 onPressed: () async {
                   final success = await notifier.submit();
                   if (!context.mounted || !success) return;
-                  context.go(AppRoutes.findingMatch);
+                  context.push(AppRoutes.findingMatch);
                 },
               ),
             ],

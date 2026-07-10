@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/features/checkins/models/check_in_model.dart';
 import 'package:pair/features/checkins/providers/streak_provider.dart';
 import 'package:pair/features/checkins/widgets/streak_badge.dart';
@@ -16,7 +18,10 @@ class StreakDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Streak')),
+      appBar: PairAppBar(
+        title: 'Streak',
+        fallbackRoute: AppRoutes.podHomePath(podId),
+      ),
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(

@@ -1,6 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pair/core/network/api_client.dart';
 
+class GoalOwner {
+  const GoalOwner({
+    required this.id,
+    required this.name,
+    this.avatarUrl,
+  });
+
+  final String id;
+  final String name;
+  final String? avatarUrl;
+
+  factory GoalOwner.fromJson(Map<String, dynamic> json) {
+    return GoalOwner(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      avatarUrl: json['avatar_url'] as String?,
+    );
+  }
+}
+
 class GoalModel {
   const GoalModel({
     required this.id,
@@ -8,6 +28,8 @@ class GoalModel {
     required this.title,
     required this.targetDescription,
     required this.pace,
+    this.isMine = true,
+    this.owner,
   });
 
   final String id;
@@ -15,6 +37,8 @@ class GoalModel {
   final String title;
   final String targetDescription;
   final String pace;
+  final bool isMine;
+  final GoalOwner? owner;
 
   factory GoalModel.fromJson(Map<String, dynamic> json) {
     return GoalModel(
@@ -23,6 +47,10 @@ class GoalModel {
       title: json['title'] as String,
       targetDescription: json['target_description'] as String,
       pace: json['pace'] as String,
+      isMine: json['is_mine'] as bool? ?? true,
+      owner: json['owner'] != null
+          ? GoalOwner.fromJson(json['owner'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -32,19 +60,37 @@ class GoalService {
 
   final ApiClient _api;
 
-  Future<List<GoalModel>> listGoals({String? category}) async {
+  Future<List<GoalModel>> listMyGoals({required String category}) async {
+    return _fetchGoals(
+      queryParameters: {
+        'category': category,
+        'scope': 'mine',
+      },
+    );
+  }
+
+  Future<List<GoalModel>> browseGoals({required String category}) async {
+    return _fetchGoals(
+      queryParameters: {
+        'category': category,
+        'scope': 'browse',
+      },
+    );
+  }
+
+  Future<List<GoalModel>> _fetchGoals({
+    required Map<String, String> queryParameters,
+  }) async {
     final response = await _api.get<List<dynamic>>(
       '/goals',
+      queryParameters: queryParameters,
       fromJsonT: (json) => (json as List).toList(),
     );
 
-    final goals = (response.data ?? [])
+    return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(GoalModel.fromJson)
         .toList();
-
-    if (category == null) return goals;
-    return goals.where((goal) => goal.category == category).toList();
   }
 
   Future<GoalModel> createGoal({

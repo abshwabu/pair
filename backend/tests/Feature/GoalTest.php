@@ -40,7 +40,7 @@ class GoalTest extends TestCase
                     'title' => 'Lose 5kg',
                     'target_description' => 'Work out 3 times a week',
                     'pace' => 'steady',
-                    'user_id' => $user->id,
+                    'is_mine' => true,
                 ],
                 'meta' => null,
                 'error' => null,
@@ -92,7 +92,109 @@ class GoalTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $goal1->id);
+            ->assertJsonPath('data.0.id', $goal1->id)
+            ->assertJsonPath('data.0.is_mine', true);
+    }
+
+    /**
+     * Test browsing other users' goals in a category.
+     */
+    public function test_user_can_browse_community_goals_in_category(): void
+    {
+        $user1 = User::create([
+            'name' => 'User 1',
+            'email' => 'user1@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $user2 = User::create([
+            'name' => 'User 2',
+            'email' => 'user2@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        Goal::create([
+            'user_id' => $user1->id,
+            'category' => 'fitness',
+            'title' => 'User 1 Goal',
+            'target_description' => 'Desc 1',
+            'pace' => 'steady',
+        ]);
+
+        $communityGoal = Goal::create([
+            'user_id' => $user2->id,
+            'category' => 'fitness',
+            'title' => 'User 2 Goal',
+            'target_description' => 'Desc 2',
+            'pace' => 'relaxed',
+        ]);
+
+        $response = $this->actingAs($user1, 'sanctum')
+            ->getJson('/api/v1/goals?scope=browse&category=fitness');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $communityGoal->id)
+            ->assertJsonPath('data.0.is_mine', false)
+            ->assertJsonPath('data.0.owner.name', 'User 2');
+    }
+
+    /**
+     * Test browse excludes goals attached to active pods.
+     */
+    public function test_browse_excludes_goals_in_active_pods(): void
+    {
+        $user1 = User::create([
+            'name' => 'User 1',
+            'email' => 'user1@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $user2 = User::create([
+            'name' => 'User 2',
+            'email' => 'user2@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $matchedGoal = Goal::create([
+            'user_id' => $user2->id,
+            'category' => 'fitness',
+            'title' => 'Matched Goal',
+            'target_description' => 'Desc',
+            'pace' => 'steady',
+        ]);
+
+        $availableGoal = Goal::create([
+            'user_id' => $user2->id,
+            'category' => 'fitness',
+            'title' => 'Available Goal',
+            'target_description' => 'Desc',
+            'pace' => 'steady',
+        ]);
+
+        $pod = Pod::create([
+            'goal_category' => 'fitness',
+            'status' => 'active',
+            'capacity' => 2,
+        ]);
+
+        PodMember::create([
+            'pod_id' => $pod->id,
+            'user_id' => $user2->id,
+            'goal_id' => $matchedGoal->id,
+            'joined_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user1, 'sanctum')
+            ->getJson('/api/v1/goals?scope=browse&category=fitness');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $availableGoal->id);
     }
 
     /**

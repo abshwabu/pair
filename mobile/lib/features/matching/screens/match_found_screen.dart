@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
+import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/pods/widgets/partner_avatar.dart';
@@ -19,6 +20,10 @@ class MatchFoundScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: const PairAppBar(
+        title: 'You matched!',
+        fallbackRoute: AppRoutes.findingMatch,
+      ),
       body: SafeArea(
         child: podAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
