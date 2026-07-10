@@ -1,0 +1,72 @@
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pair_backend_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
+
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pair_backend_reverb
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/var/www
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - app
+
+  horizon:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pair_backend_horizon
+    restart: unless-stopped
+    command: php artisan horizon
+    volumes:
+      - ./backend:/var/www
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - app
+
+  postgres:
+    image: postgres:16
+    container_name: pair_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pair
+      POSTGRES_USER: pair_user
+      POSTGRES_PASSWORD: pair_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: pair_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
