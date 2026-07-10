@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendFcmNotificationJob;
 use App\Models\CheckIn;
 use App\Models\Goal;
 use App\Models\Pod;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Services\StreakService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class CheckInTest extends TestCase
@@ -26,6 +28,7 @@ class CheckInTest extends TestCase
 
     public function test_single_check_in_does_not_increment_streak(): void
     {
+        Queue::fake();
         Carbon::setTestNow('2026-07-10 12:00:00');
 
         [$pod, $user1] = $this->createActivePodPair();
@@ -48,6 +51,8 @@ class CheckInTest extends TestCase
                     'both_checked_in_today' => false,
                 ],
             ]);
+
+        Queue::assertPushed(SendFcmNotificationJob::class);
     }
 
     public function test_both_members_checking_in_same_day_increments_streak(): void
@@ -98,6 +103,7 @@ class CheckInTest extends TestCase
 
     public function test_missed_day_resets_streak(): void
     {
+        Queue::fake();
         Carbon::setTestNow('2026-07-10 12:00:00');
 
         [$pod, $user1, $user2] = $this->createActivePodPair();
@@ -107,6 +113,7 @@ class CheckInTest extends TestCase
         Carbon::setTestNow('2026-07-12 00:05:00');
 
         $this->artisan('streaks:reset-missed')->assertSuccessful();
+        Queue::assertPushed(SendFcmNotificationJob::class);
 
         $this->actingAs($user1, 'sanctum')
             ->getJson("/api/v1/pods/{$pod->id}/streak")

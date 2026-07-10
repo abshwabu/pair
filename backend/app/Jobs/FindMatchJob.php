@@ -2,12 +2,12 @@
 
 namespace App\Jobs;
 
-use App\Jobs\FindMatchJob;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\PodRequest;
 use App\Services\BlockService;
 use App\Services\MatchingScorer;
+use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -25,9 +25,13 @@ class FindMatchJob implements ShouldQueue
         public int $attempt = 1,
     ) {}
 
-    public function handle(MatchingScorer $scorer, BlockService $blockService): void
+    public function handle(
+        MatchingScorer $scorer,
+        BlockService $blockService,
+        NotificationService $notificationService,
+    ): void
     {
-        DB::transaction(function () use ($scorer, $blockService) {
+        DB::transaction(function () use ($scorer, $blockService, $notificationService) {
             $request = PodRequest::query()
                 ->with(['goal', 'user'])
                 ->lockForUpdate()
@@ -62,7 +66,7 @@ class FindMatchJob implements ShouldQueue
             }
 
             if ($bestCandidate) {
-                $this->createMatch($request, $bestCandidate);
+                $this->createMatch($request, $bestCandidate, $notificationService);
 
                 return;
             }
@@ -71,7 +75,11 @@ class FindMatchJob implements ShouldQueue
         });
     }
 
-    private function createMatch(PodRequest $request, PodRequest $candidate): void
+    private function createMatch(
+        PodRequest $request,
+        PodRequest $candidate,
+        NotificationService $notificationService,
+    ): void
     {
         $pod = Pod::create([
             'goal_category' => $request->goal->category,
@@ -97,6 +105,16 @@ class FindMatchJob implements ShouldQueue
 
         $request->update(['status' => 'matched']);
         $candidate->update(['status' => 'matched']);
+
+        $notificationService->send($request->user, 'match_found', [
+            'pod_id' => $pod->id,
+            'partner_id' => $candidate->user_id,
+        ]);
+
+        $notificationService->send($candidate->user, 'match_found', [
+            'pod_id' => $pod->id,
+            'partner_id' => $request->user_id,
+        ]);
     }
 
     private function requeueIfNeeded(): void

@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 
 class StreakService
 {
+    public function __construct(private readonly NotificationService $notificationService) {}
+
     public function todayUtc(): CarbonInterface
     {
         return Carbon::today('UTC');
@@ -72,10 +74,28 @@ class StreakService
     {
         $today ??= $this->todayUtc();
         $yesterday = $today->copy()->subDay()->toDateString();
-
-        return Streak::query()
+        $brokenStreaks = Streak::query()
+            ->with('pod.podMembers.user')
+            ->where('current_streak', '>', 0)
             ->whereNotNull('last_check_in_date')
             ->where('last_check_in_date', '<', $yesterday)
+            ->get();
+
+        foreach ($brokenStreaks as $streak) {
+            foreach ($streak->pod?->podMembers ?? [] as $member) {
+                if ($member->left_at !== null || ! $member->user) {
+                    continue;
+                }
+
+                $this->notificationService->send($member->user, 'streak_broken', [
+                    'pod_id' => $streak->pod_id,
+                    'last_check_in_date' => $streak->last_check_in_date?->toDateString(),
+                ]);
+            }
+        }
+
+        return Streak::query()
+            ->whereIn('id', $brokenStreaks->pluck('id'))
             ->update(['current_streak' => 0]);
     }
 

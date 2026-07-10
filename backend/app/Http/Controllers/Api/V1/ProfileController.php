@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateFcmTokenRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UploadAvatarRequest;
 use App\Traits\ApiResponse;
@@ -50,6 +51,19 @@ class ProfileController extends Controller
         // Update user model
         $user->update([
             'avatar_url' => $url,
+        ]);
+
+        return $this->success($user);
+    }
+
+    /**
+     * PATCH /api/v1/profile/fcm-token
+     */
+    public function updateFcmToken(UpdateFcmTokenRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->update([
+            'fcm_token' => $request->validated('fcm_token'),
         ]);
 
         return $this->success($user);

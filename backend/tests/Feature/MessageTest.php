@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Events\MessageSent;
 use App\Events\UserTyping;
+use App\Jobs\SendFcmNotificationJob;
 use App\Models\Goal;
 use App\Models\Message;
 use App\Models\Pod;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MessageTest extends TestCase
@@ -40,6 +42,7 @@ class MessageTest extends TestCase
     public function test_member_can_send_message_and_it_persists(): void
     {
         Event::fake([MessageSent::class]);
+        Queue::fake();
 
         [$pod, $user1] = $this->createActivePodPair();
 
@@ -65,6 +68,26 @@ class MessageTest extends TestCase
                 && $event->message->body === 'Hello partner!'
                 && $event->broadcastOn()[0]->name === 'private-pod.'.$pod->id;
         });
+
+        Queue::assertPushed(SendFcmNotificationJob::class);
+    }
+
+    public function test_no_notification_queued_if_recipient_is_currently_viewing_chat(): void
+    {
+        Queue::fake();
+        [$pod, $user1, $user2] = $this->createActivePodPair();
+
+        $this->actingAs($user2, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/typing")
+            ->assertStatus(200);
+
+        $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/messages", [
+                'body' => 'Hello while viewing',
+            ])
+            ->assertStatus(201);
+
+        Queue::assertNotPushed(SendFcmNotificationJob::class);
     }
 
     public function test_message_sent_event_broadcasts_expected_payload(): void

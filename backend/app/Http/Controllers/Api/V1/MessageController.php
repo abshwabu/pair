@@ -8,14 +8,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateMessageRequest;
 use App\Models\Message;
 use App\Models\Pod;
+use App\Models\User;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class MessageController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private readonly NotificationService $notificationService) {}
 
     /**
      * GET /api/v1/pods/{pod}/messages
@@ -59,6 +64,7 @@ class MessageController extends Controller
         $message = $message->fresh(['sender:id,name,avatar_url']);
 
         MessageSent::dispatch($message);
+        $this->notifyRecipientsAboutMessage($pod, $request->user(), $message);
 
         return $this->success($this->formatMessage($message), null, 201);
     }
@@ -69,6 +75,8 @@ class MessageController extends Controller
     public function typing(Request $request, Pod $pod): JsonResponse
     {
         Gate::authorize('view', $pod);
+
+        Cache::put($this->chatPresenceCacheKey($request->user()->id, $pod->id), true, now()->addMinute());
 
         UserTyping::dispatch($pod->id, $request->user());
 
@@ -94,5 +102,35 @@ class MessageController extends Controller
             'attachment_url' => $message->attachment_url,
             'created_at' => $message->created_at?->toIso8601String(),
         ];
+    }
+
+    private function notifyRecipientsAboutMessage(Pod $pod, User $sender, Message $message): void
+    {
+        $pod->loadMissing('podMembers.user');
+        $senderName = $sender->name;
+        $preview = $message->body ?: 'Sent an attachment';
+
+        foreach ($pod->podMembers as $member) {
+            if ($member->user_id === $sender->id || $member->left_at !== null) {
+                continue;
+            }
+
+            if (Cache::has($this->chatPresenceCacheKey($member->user_id, $pod->id))) {
+                continue;
+            }
+
+            $this->notificationService->send($member->user, 'new_message', [
+                'pod_id' => $pod->id,
+                'message_id' => $message->id,
+                'sender_id' => $sender->id,
+                'sender_name' => $senderName,
+                'preview' => $preview,
+            ]);
+        }
+    }
+
+    private function chatPresenceCacheKey(string $userId, string $podId): string
+    {
+        return "chat_presence:{$userId}:{$podId}";
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\CheckInController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
 use App\Http\Controllers\Api\V1\MessageController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PodController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -26,7 +27,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::patch('/profile', [ProfileController::class, 'update']);
+        Route::patch('/profile/fcm-token', [ProfileController::class, 'updateFcmToken']);
         Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']);
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read']);
 
         // Goals routes
         Route::get('/goals', [GoalController::class, 'index']);

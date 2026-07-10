@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateCheckInRequest;
 use App\Models\CheckIn;
 use App\Models\Pod;
+use App\Services\NotificationService;
 use App\Services\StreakService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +16,10 @@ class CheckInController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private readonly StreakService $streakService) {}
+    public function __construct(
+        private readonly StreakService $streakService,
+        private readonly NotificationService $notificationService,
+    ) {}
 
     /**
      * GET /api/v1/pods/{pod}/check-ins
@@ -71,6 +75,7 @@ class CheckInController extends Controller
         $checkIn->load('user:id,name,avatar_url');
 
         $this->streakService->recalculateAfterCheckIn($pod);
+        $this->notifyPartnersWhoHaveNotCheckedIn($pod, $request->user()->id, $today);
 
         return $this->success($this->formatCheckIn($checkIn), null, 201);
     }
@@ -104,5 +109,28 @@ class CheckInController extends Controller
             'note' => $checkIn->note,
             'created_at' => $checkIn->created_at?->toIso8601String(),
         ];
+    }
+
+    private function notifyPartnersWhoHaveNotCheckedIn(Pod $pod, string $actorId, string $today): void
+    {
+        $checkedInUserIds = CheckIn::query()
+            ->where('pod_id', $pod->id)
+            ->whereDate('check_in_date', $today)
+            ->pluck('user_id');
+
+        $partners = $pod->podMembers()
+            ->with('user')
+            ->whereNull('left_at')
+            ->where('user_id', '!=', $actorId)
+            ->whereNotIn('user_id', $checkedInUserIds)
+            ->get();
+
+        foreach ($partners as $partner) {
+            $this->notificationService->send($partner->user, 'checkin_nudge', [
+                'pod_id' => $pod->id,
+                'partner_id' => $actorId,
+                'check_in_date' => $today,
+            ]);
+        }
     }
 }

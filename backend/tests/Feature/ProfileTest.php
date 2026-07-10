@@ -80,6 +80,28 @@ class ProfileTest extends TestCase
         ]);
     }
 
+    public function test_update_fcm_token_saves_user_token(): void
+    {
+        $user = User::create([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'America/New_York',
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->patchJson('/api/v1/profile/fcm-token', [
+                'fcm_token' => 'token_123',
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.fcm_token', 'token_123');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'fcm_token' => 'token_123',
+        ]);
+    }
+
     /**
      * Test successful avatar upload stores to s3.
      */

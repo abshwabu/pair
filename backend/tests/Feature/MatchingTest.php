@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\FindMatchJob;
+use App\Jobs\SendFcmNotificationJob;
 use App\Models\Block;
 use App\Models\Goal;
 use App\Models\Pod;
@@ -51,6 +52,7 @@ class MatchingTest extends TestCase
 
     public function test_compatible_users_get_paired_within_one_job_run(): void
     {
+        Queue::fake();
         $user1 = $this->createUser('user1@example.com', 'UTC', 'en');
         $user2 = $this->createUser('user2@example.com', 'UTC', 'en');
 
@@ -107,6 +109,8 @@ class MatchingTest extends TestCase
             'user_id' => $user2->id,
             'goal_id' => $goal2->id,
         ]);
+
+        Queue::assertPushed(SendFcmNotificationJob::class);
     }
 
     public function test_incompatible_language_users_do_not_get_paired(): void
@@ -398,6 +402,7 @@ class MatchingTest extends TestCase
         (new FindMatchJob($podRequestId))->handle(
             app(MatchingScorer::class),
             app(BlockService::class),
+            app(\App\Services\NotificationService::class),
         );
     }
 

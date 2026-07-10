@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID'),
+        'access_token' => env('FCM_ACCESS_TOKEN'),
+    ],
+
 ];
