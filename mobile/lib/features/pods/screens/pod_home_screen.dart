@@ -5,6 +5,7 @@ import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/pods/widgets/partner_avatar.dart';
+import 'package:pair/features/todos/widgets/open_todos_preview.dart';
 
 class PodHomeScreen extends ConsumerWidget {
   const PodHomeScreen({super.key, required this.podId});
@@ -116,27 +117,19 @@ class PodHomeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.checklist_outlined,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Shared todos coming soon',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                if (currentUserId != null)
+                  OpenTodosPreview(
+                    podId: podId,
+                    currentUserId: currentUserId,
+                    partner: partner,
+                  )
+                else
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
-                ),
               ],
             ),
           );

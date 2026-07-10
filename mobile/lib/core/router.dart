@@ -15,6 +15,8 @@ import 'package:pair/features/onboarding/screens/matching_prefs_screen.dart';
 import 'package:pair/features/onboarding/screens/profile_setup_screen.dart';
 import 'package:pair/features/pods/screens/pod_home_screen.dart';
 import 'package:pair/features/pods/screens/pod_settings_screen.dart';
+import 'package:pair/features/todos/screens/todo_detail_screen.dart';
+import 'package:pair/features/todos/screens/todo_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ref.watch(routerRefreshProvider);
@@ -113,14 +115,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.todoList,
         name: 'todo-list',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'todo-list'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          if (podId == null) {
+            return const RouteStubScreen(routeName: 'todo-list');
+          }
+          return TodoListScreen(podId: podId);
+        },
       ),
       GoRoute(
         path: AppRoutes.todoDetail,
         name: 'todo-detail',
-        builder: (context, state) =>
-            const RouteStubScreen(routeName: 'todo-detail'),
+        builder: (context, state) {
+          final podId = AppRoutes.podIdFrom(state);
+          final todoId = AppRoutes.todoIdFrom(state);
+          if (podId == null || todoId == null) {
+            return const RouteStubScreen(routeName: 'todo-detail');
+          }
+          return TodoDetailScreen(podId: podId, todoId: todoId);
+        },
       ),
       GoRoute(
         path: AppRoutes.chat,

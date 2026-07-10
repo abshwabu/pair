@@ -35,6 +35,9 @@ abstract final class AppRoutes {
 
   static String todoListPath(String podId) => '$todoList?podId=$podId';
 
+  static String todoDetailPath(String podId, String todoId) =>
+      '$todoDetail?podId=$podId&todoId=$todoId';
+
   static String chatPath(String podId) => '$chat?podId=$podId';
 
   static String streakDetailPath(String podId) => '$streakDetail?podId=$podId';
@@ -42,6 +45,9 @@ abstract final class AppRoutes {
   static String reportFormPath(String podId) => '$reportForm?podId=$podId';
 
   static String? podIdFrom(GoRouterState state) => state.uri.queryParameters['podId'];
+
+  static String? todoIdFrom(GoRouterState state) =>
+      state.uri.queryParameters['todoId'];
 
   static const allStubs = [
     splash,
