@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MatchingController;
+use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\PodController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\TodoController;
@@ -43,5 +44,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/pods/{pod}/todos', [TodoController::class, 'store']);
         Route::patch('/pods/{pod}/todos/{todo}', [TodoController::class, 'update'])->scopeBindings();
         Route::delete('/pods/{pod}/todos/{todo}', [TodoController::class, 'destroy'])->scopeBindings();
+
+        Route::get('/pods/{pod}/messages', [MessageController::class, 'index']);
+        Route::post('/pods/{pod}/messages', [MessageController::class, 'store']);
+        Route::post('/pods/{pod}/typing', [MessageController::class, 'typing']);
     });
 });

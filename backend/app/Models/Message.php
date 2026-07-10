@@ -18,6 +18,7 @@ class Message extends Model
         'sender_id',
         'body',
         'attachment_url',
+        'created_at',
     ];
 
     protected function casts(): array
