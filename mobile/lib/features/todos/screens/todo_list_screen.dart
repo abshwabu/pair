@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/pair_app_bar.dart';
+import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
 import 'package:pair/features/pods/models/pod_model.dart';
 import 'package:pair/features/todos/models/todo_model.dart';
@@ -111,6 +112,8 @@ class _FilterChips extends StatelessWidget {
         children: [
           _chip('All', TodoFilter.all),
           const SizedBox(width: AppSpacing.xs),
+          _chip('Needs action', TodoFilter.needsAction),
+          const SizedBox(width: AppSpacing.xs),
           _chip('Mine', TodoFilter.mine),
           const SizedBox(width: AppSpacing.xs),
           _chip("Partner's", TodoFilter.partners),
@@ -147,10 +150,22 @@ class _TodoListBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final notifier = ref.read(todosProvider(podId).notifier);
+
+    final needsApproval = groupPendingApprovalTodos(
+      todos: todos,
+      currentUserId: currentUserId,
+    );
+    final waitingOnPartner = groupWaitingOnPartnerTodos(
+      todos: todos,
+      currentUserId: currentUserId,
+    );
     final open = groupOpenTodos(todos);
     final done = groupDoneTodos(todos);
 
-    if (open.isEmpty && done.isEmpty) {
+    if (needsApproval.isEmpty &&
+        waitingOnPartner.isEmpty &&
+        open.isEmpty &&
+        done.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
@@ -173,6 +188,62 @@ class _TodoListBody extends ConsumerWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
+        if (needsApproval.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text('Needs your approval', style: theme.textTheme.titleMedium),
+          ),
+          ...needsApproval.map(
+            (todo) => Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: _ApprovalCard(
+                todo: todo,
+                onApprove: () => _handleApprove(context, notifier, todo.id),
+                onReject: () => _handleReject(context, notifier, todo.id),
+              ),
+            ),
+          ),
+        ],
+        if (waitingOnPartner.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text('Waiting on partner', style: theme.textTheme.titleMedium),
+          ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Column(
+              children: [
+                for (var i = 0; i < waitingOnPartner.length; i++) ...[
+                  ListTile(
+                    title: Text(waitingOnPartner[i].title),
+                    subtitle: Text(
+                      waitingOnPartner[i].isPending
+                          ? 'Waiting for partner to approve new todo'
+                          : 'Waiting for partner to approve removal',
+                    ),
+                  ),
+                  if (i < waitingOnPartner.length - 1) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         if (open.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -194,7 +265,8 @@ class _TodoListBody extends ConsumerWidget {
                     currentUserId: currentUserId,
                     partner: partner,
                     onToggle: (_) async {
-                      final error = await notifier.toggleDone(open[i].id);
+                      final error =
+                          await notifier.toggleMyCompletion(open[i].id);
                       if (error != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(error)),
@@ -219,7 +291,7 @@ class _TodoListBody extends ConsumerWidget {
               AppSpacing.lg,
               AppSpacing.xs,
             ),
-            child: Text('Done', style: theme.textTheme.titleMedium),
+            child: Text('Done by you', style: theme.textTheme.titleMedium),
           ),
           Card(
             margin: const EdgeInsets.fromLTRB(
@@ -237,7 +309,8 @@ class _TodoListBody extends ConsumerWidget {
                     currentUserId: currentUserId,
                     partner: partner,
                     onToggle: (_) async {
-                      final error = await notifier.toggleDone(done[i].id);
+                      final error =
+                          await notifier.toggleMyCompletion(done[i].id);
                       if (error != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(error)),
@@ -255,6 +328,89 @@ class _TodoListBody extends ConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+
+  Future<void> _handleApprove(
+    BuildContext context,
+    TodosNotifier notifier,
+    String todoId,
+  ) async {
+    final error = await notifier.approveTodo(todoId);
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
+  }
+
+  Future<void> _handleReject(
+    BuildContext context,
+    TodosNotifier notifier,
+    String todoId,
+  ) async {
+    final error = await notifier.rejectTodo(todoId);
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
+  }
+}
+
+class _ApprovalCard extends StatelessWidget {
+  const _ApprovalCard({
+    required this.todo,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final TodoModel todo;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDeletion = todo.isPendingDeletion;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              isDeletion ? 'Remove todo?' : 'Approve todo?',
+              style: theme.textTheme.labelMedium,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(todo.title, style: theme.textTheme.titleMedium),
+            if (todo.notes != null && todo.notes!.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(todo.notes!, style: theme.textTheme.bodySmall),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onReject,
+                    child: Text(isDeletion ? 'Keep' : 'Decline'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: PrimaryButton(
+                    label: isDeletion ? 'Remove' : 'Approve',
+                    onPressed: onApprove,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

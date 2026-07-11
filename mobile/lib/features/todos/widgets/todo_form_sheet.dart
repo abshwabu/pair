@@ -147,6 +147,16 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
       return;
     }
 
+    if (!mounted) return;
+
+    if (!_isEditing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Todo sent — waiting for your partner to approve.'),
+        ),
+      );
+    }
+
     Navigator.of(context).pop(true);
   }
 
@@ -167,9 +177,18 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            _isEditing ? 'Edit todo' : 'Add todo',
+            _isEditing ? 'Edit todo' : 'Propose todo',
             style: theme.textTheme.headlineSmall,
           ),
+          if (!_isEditing) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Your partner must approve before it appears on the pod list.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _titleController,
@@ -234,7 +253,7 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
           ],
           const SizedBox(height: AppSpacing.lg),
           PrimaryButton(
-            label: _isEditing ? 'Save changes' : 'Add todo',
+            label: _isEditing ? 'Save changes' : 'Send to partner',
             isLoading: _isSubmitting,
             onPressed: _submit,
           ),

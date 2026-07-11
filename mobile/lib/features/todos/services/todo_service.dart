@@ -47,7 +47,7 @@ class TodoService {
     String? notes,
     DateTime? dueDate,
     String? assignedTo,
-    bool? isDone,
+    bool? myCompleted,
     bool clearNotes = false,
     bool clearDueDate = false,
     bool clearAssignedTo = false,
@@ -67,7 +67,7 @@ class TodoService {
     } else if (clearAssignedTo) {
       data['assigned_to'] = null;
     }
-    if (isDone != null) data['is_done'] = isDone;
+    if (myCompleted != null) data['my_completed'] = myCompleted;
 
     final response = await _api.patch<Map<String, dynamic>>(
       '/pods/$podId/todos/$todoId',
@@ -77,14 +77,50 @@ class TodoService {
     return TodoModel.fromJson(response.data!);
   }
 
-  Future<void> deleteTodo({
+  /// Returns null when the todo was removed (cancelled proposal / approved deletion).
+  Future<TodoModel?> deleteTodo({
     required String podId,
     required String todoId,
   }) async {
-    await _api.delete<Map<String, dynamic>>(
+    final response = await _api.delete<Map<String, dynamic>>(
       '/pods/$podId/todos/$todoId',
       fromJsonT: (json) => json as Map<String, dynamic>,
     );
+    final data = response.data;
+    if (data == null || data.containsKey('message')) {
+      return null;
+    }
+    return TodoModel.fromJson(data);
+  }
+
+  Future<TodoModel?> approveTodo({
+    required String podId,
+    required String todoId,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/pods/$podId/todos/$todoId/approve',
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+    final data = response.data;
+    if (data == null || data.containsKey('message')) {
+      return null;
+    }
+    return TodoModel.fromJson(data);
+  }
+
+  Future<TodoModel?> rejectTodo({
+    required String podId,
+    required String todoId,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/pods/$podId/todos/$todoId/reject',
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+    final data = response.data;
+    if (data == null || data.containsKey('message')) {
+      return null;
+    }
+    return TodoModel.fromJson(data);
   }
 
   String _formatDate(DateTime date) {

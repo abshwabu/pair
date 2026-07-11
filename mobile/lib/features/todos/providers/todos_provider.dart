@@ -94,8 +94,13 @@ class TodosNotifier extends StateNotifier<TodosState> {
     );
   }
 
-  List<TodoModel> openTodos({int? limit}) {
-    final open = state.todos.where((todo) => !todo.isDone).toList()
+  List<TodoModel> openTodos({
+    required String currentUserId,
+    int? limit,
+  }) {
+    final open = state.todos
+        .where((todo) => todo.isActive && !todo.myCompleted)
+        .toList()
       ..sort(_compareByDueDate);
     if (limit != null && open.length > limit) {
       return open.take(limit).toList();
@@ -110,12 +115,16 @@ class TodosNotifier extends StateNotifier<TodosState> {
     return null;
   }
 
-  Future<String?> toggleDone(String todoId) async {
+  Future<String?> toggleMyCompletion(String todoId) async {
     final index = state.todos.indexWhere((todo) => todo.id == todoId);
     if (index == -1) return 'Todo not found.';
 
     final original = state.todos[index];
-    final optimistic = original.copyWith(isDone: !original.isDone);
+    if (!original.isActive) {
+      return 'You can only check off active todos.';
+    }
+
+    final optimistic = original.copyWith(myCompleted: !original.myCompleted);
     final updated = [...state.todos];
     updated[index] = optimistic;
     state = state.copyWith(todos: updated);
@@ -124,7 +133,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
       final result = await _ref.read(todoServiceProvider).updateTodo(
             podId: _podId,
             todoId: todoId,
-            isDone: optimistic.isDone,
+            myCompleted: optimistic.myCompleted,
           );
       updated[index] = result;
       state = state.copyWith(todos: updated);
@@ -159,7 +168,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
     } on ApiException catch (e) {
       return e.message;
     } catch (_) {
-      return 'Unable to create todo.';
+      return 'Unable to propose todo.';
     }
   }
 
@@ -199,20 +208,78 @@ class TodosNotifier extends StateNotifier<TodosState> {
     }
   }
 
-  Future<String?> deleteTodo(String todoId) async {
+  Future<String?> requestDeletion(String todoId) async {
     try {
-      await _ref.read(todoServiceProvider).deleteTodo(
+      final result = await _ref.read(todoServiceProvider).deleteTodo(
             podId: _podId,
             todoId: todoId,
           );
-      state = state.copyWith(
-        todos: state.todos.where((todo) => todo.id != todoId).toList(),
-      );
+      if (result == null) {
+        state = state.copyWith(
+          todos: state.todos.where((todo) => todo.id != todoId).toList(),
+        );
+        return null;
+      }
+      final todos = [
+        for (final todo in state.todos)
+          if (todo.id == todoId) result else todo,
+      ];
+      state = state.copyWith(todos: todos);
       return null;
     } on ApiException catch (e) {
       return e.message;
     } catch (_) {
-      return 'Unable to delete todo.';
+      return 'Unable to request deletion.';
+    }
+  }
+
+  Future<String?> approveTodo(String todoId) async {
+    try {
+      final result = await _ref.read(todoServiceProvider).approveTodo(
+            podId: _podId,
+            todoId: todoId,
+          );
+      if (result == null) {
+        state = state.copyWith(
+          todos: state.todos.where((todo) => todo.id != todoId).toList(),
+        );
+        return null;
+      }
+      final todos = [
+        for (final todo in state.todos)
+          if (todo.id == todoId) result else todo,
+      ];
+      state = state.copyWith(todos: todos);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Unable to approve todo.';
+    }
+  }
+
+  Future<String?> rejectTodo(String todoId) async {
+    try {
+      final result = await _ref.read(todoServiceProvider).rejectTodo(
+            podId: _podId,
+            todoId: todoId,
+          );
+      if (result == null) {
+        state = state.copyWith(
+          todos: state.todos.where((todo) => todo.id != todoId).toList(),
+        );
+        return null;
+      }
+      final todos = [
+        for (final todo in state.todos)
+          if (todo.id == todoId) result else todo,
+      ];
+      state = state.copyWith(todos: todos);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Unable to reject todo.';
     }
   }
 
@@ -235,6 +302,15 @@ class TodosNotifier extends StateNotifier<TodosState> {
             .toList();
       case TodoFilter.shared:
         return todos.where((todo) => todo.assignedTo == null).toList();
+      case TodoFilter.needsAction:
+        return todos.where((todo) {
+          if (todo.isPending && todo.createdBy != currentUserId) return true;
+          if (todo.isPendingDeletion &&
+              todo.deletionRequestedBy != currentUserId) {
+            return true;
+          }
+          return false;
+        }).toList();
     }
   }
 
@@ -252,22 +328,45 @@ final todosProvider =
 );
 
 List<TodoModel> groupOpenTodos(List<TodoModel> todos) {
-  final open = todos.where((todo) => !todo.isDone).toList()
+  final open = todos
+      .where((todo) => todo.isActive && !todo.myCompleted)
+      .toList()
     ..sort(TodosNotifier._compareByDueDate);
   return open;
 }
 
 List<TodoModel> groupDoneTodos(List<TodoModel> todos) {
-  final done = todos.where((todo) => todo.isDone).toList()
-    ..sort((a, b) {
-      final aDate = a.completedAt ?? a.dueDate;
-      final bDate = b.completedAt ?? b.dueDate;
-      if (aDate == null && bDate == null) return 0;
-      if (aDate == null) return 1;
-      if (bDate == null) return -1;
-      return bDate.compareTo(aDate);
-    });
+  final done = todos
+      .where((todo) => todo.isActive && todo.myCompleted)
+      .toList()
+    ..sort(TodosNotifier._compareByDueDate);
   return done;
+}
+
+List<TodoModel> groupPendingApprovalTodos({
+  required List<TodoModel> todos,
+  required String currentUserId,
+}) {
+  return todos.where((todo) {
+    if (todo.isPending && todo.createdBy != currentUserId) return true;
+    if (todo.isPendingDeletion && todo.deletionRequestedBy != currentUserId) {
+      return true;
+    }
+    return false;
+  }).toList();
+}
+
+List<TodoModel> groupWaitingOnPartnerTodos({
+  required List<TodoModel> todos,
+  required String currentUserId,
+}) {
+  return todos.where((todo) {
+    if (todo.isPending && todo.createdBy == currentUserId) return true;
+    if (todo.isPendingDeletion && todo.deletionRequestedBy == currentUserId) {
+      return true;
+    }
+    return false;
+  }).toList();
 }
 
 String formatTodoDueDate(DateTime date) {

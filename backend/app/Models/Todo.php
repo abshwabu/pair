@@ -13,7 +13,9 @@ class Todo extends Model
 
     protected $fillable = [
         'pod_id',
+        'status',
         'created_by',
+        'deletion_requested_by',
         'assigned_to',
         'title',
         'notes',
@@ -21,6 +23,12 @@ class Todo extends Model
         'is_done',
         'completed_at',
     ];
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_PENDING_DELETION = 'pending_deletion';
 
     protected function casts(): array
     {
@@ -46,5 +54,15 @@ class Todo extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function deletionRequester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deletion_requested_by');
+    }
+
+    public function completions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TodoCompletion::class);
     }
 }

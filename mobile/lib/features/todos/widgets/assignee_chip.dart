@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pair/core/network/media_url.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/features/pods/models/pod_model.dart';
 
@@ -18,7 +19,8 @@ class AssigneeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final initials = label.isNotEmpty ? label[0].toUpperCase() : '?';
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final resolvedUrl = resolveMediaUrl(avatarUrl);
+    final hasAvatar = resolvedUrl != null;
     final radius = compact ? 10.0 : 12.0;
 
     return Container(
@@ -37,7 +39,7 @@ class AssigneeChip extends StatelessWidget {
           CircleAvatar(
             radius: radius,
             backgroundColor: theme.colorScheme.primaryContainer,
-            backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+            backgroundImage: hasAvatar ? NetworkImage(resolvedUrl!) : null,
             child: hasAvatar
                 ? null
                 : Text(

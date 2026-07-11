@@ -34,7 +34,7 @@ class OpenTodosPreview extends ConsumerWidget {
       );
     }
 
-    final openTodos = notifier.openTodos(limit: 3);
+    final openTodos = notifier.openTodos(currentUserId: currentUserId, limit: 3);
 
     if (openTodos.isEmpty) {
       return Card(
@@ -70,7 +70,8 @@ class OpenTodosPreview extends ConsumerWidget {
               currentUserId: currentUserId,
               partner: partner,
               onToggle: (_) async {
-                final error = await notifier.toggleDone(openTodos[i].id);
+                final error =
+                    await notifier.toggleMyCompletion(openTodos[i].id);
                 if (error != null && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(error)),

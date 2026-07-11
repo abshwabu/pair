@@ -15,11 +15,12 @@ class TodoPolicy
 
     public function delete(User $user, Todo $todo): bool
     {
-        if (! $this->isActivePodMember($user, $todo->pod)) {
-            return false;
-        }
+        return $this->isActivePodMember($user, $todo->pod);
+    }
 
-        return $todo->created_by === $user->id || $todo->assigned_to === null;
+    public function approve(User $user, Todo $todo): bool
+    {
+        return $this->isActivePodMember($user, $todo->pod);
     }
 
     private function isActivePodMember(User $user, Pod $pod): bool

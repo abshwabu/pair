@@ -26,6 +26,9 @@ class TodoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final partnerId = partner?.user.id;
+    final partnerCompleted =
+        partnerId != null && todo.isCompletedBy(partnerId);
 
     return InkWell(
       onTap: onTap,
@@ -37,11 +40,11 @@ class TodoRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showCheckbox)
+            if (showCheckbox && todo.isActive)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.sm),
                 child: Checkbox(
-                  value: todo.isDone,
+                  value: todo.myCompleted,
                   onChanged: (value) {
                     if (value != null) onToggle(value);
                   },
@@ -54,10 +57,10 @@ class TodoRow extends StatelessWidget {
                   Text(
                     todo.title,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      decoration: todo.isDone
+                      decoration: todo.myCompleted
                           ? TextDecoration.lineThrough
                           : null,
-                      color: todo.isDone
+                      color: todo.myCompleted
                           ? theme.colorScheme.onSurfaceVariant
                           : null,
                     ),
@@ -67,6 +70,19 @@ class TodoRow extends StatelessWidget {
                     Text(
                       'Due ${formatTodoDueDate(todo.dueDate!)}',
                       style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                  if (todo.isActive && partnerId != null) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      partnerCompleted
+                          ? '${partner!.user.name} completed'
+                          : '${partner!.user.name} not done yet',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: partnerCompleted
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ],

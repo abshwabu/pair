@@ -32,7 +32,7 @@ class UpdateTodoRequest extends FormRequest
                 Rule::exists('pod_members', 'user_id')
                     ->where(fn ($query) => $query->where('pod_id', $pod->id)->whereNull('left_at')),
             ],
-            'is_done' => ['sometimes', 'boolean'],
+            'my_completed' => ['sometimes', 'boolean'],
         ];
     }
 }

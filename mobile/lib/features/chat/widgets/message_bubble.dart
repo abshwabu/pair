@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pair/core/network/media_url.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/features/chat/models/message_model.dart';
 
@@ -71,7 +72,7 @@ class MessageBubble extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                       child: Image.network(
-                        message.attachmentUrl!,
+                        resolveMediaUrl(message.attachmentUrl!)!,
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
                           return SizedBox(

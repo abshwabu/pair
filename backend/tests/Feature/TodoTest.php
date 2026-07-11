@@ -6,6 +6,7 @@ use App\Models\Goal;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\Todo;
+use App\Models\TodoCompletion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,9 +15,9 @@ class TodoTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_member_can_create_shared_todo(): void
+    public function test_member_can_propose_todo_pending_until_partner_approves(): void
     {
-        [$pod, $user1] = $this->createActivePodPair();
+        [$pod, $user1, $user2] = $this->createActivePodPair();
 
         $response = $this->actingAs($user1, 'sanctum')
             ->postJson("/api/v1/pods/{$pod->id}/todos", [
@@ -28,19 +29,65 @@ class TodoTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.pod_id', $pod->id)
             ->assertJsonPath('data.created_by', $user1->id)
-            ->assertJsonPath('data.assigned_to', null)
+            ->assertJsonPath('data.status', Todo::STATUS_PENDING)
             ->assertJsonPath('data.title', 'Morning run')
-            ->assertJsonPath('data.notes', 'Before breakfast')
-            ->assertJsonPath('data.due_date', '2026-07-15T00:00:00.000000Z')
-            ->assertJsonPath('data.is_done', false)
+            ->assertJsonPath('data.my_completed', false)
             ->assertJsonPath('error', null);
 
         $this->assertDatabaseHas('todos', [
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'assigned_to' => null,
+            'status' => Todo::STATUS_PENDING,
             'title' => 'Morning run',
         ]);
+
+        $todoId = $response->json('data.id');
+
+        $this->actingAs($user2, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos/{$todoId}/approve")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', Todo::STATUS_ACTIVE);
+
+        $this->assertDatabaseHas('todos', [
+            'id' => $todoId,
+            'status' => Todo::STATUS_ACTIVE,
+        ]);
+    }
+
+    public function test_partner_can_reject_pending_todo_proposal(): void
+    {
+        [$pod, $user1, $user2] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'title' => 'Rejected task',
+            'status' => Todo::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($user2, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}/reject")
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('todos', ['id' => $todo->id]);
+    }
+
+    public function test_proposer_can_cancel_pending_todo(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'title' => 'Cancelled task',
+            'status' => Todo::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->deleteJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}")
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('todos', ['id' => $todo->id]);
     }
 
     public function test_member_can_create_assigned_todo(): void
@@ -54,7 +101,8 @@ class TodoTest extends TestCase
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('data.assigned_to', $user2->id);
+            ->assertJsonPath('data.assigned_to', $user2->id)
+            ->assertJsonPath('data.status', Todo::STATUS_PENDING);
     }
 
     public function test_member_can_list_todos_sorted_by_due_date(): void
@@ -66,6 +114,7 @@ class TodoTest extends TestCase
             'created_by' => $user1->id,
             'title' => 'Later',
             'due_date' => '2026-07-20',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         Todo::create([
@@ -73,6 +122,7 @@ class TodoTest extends TestCase
             'created_by' => $user1->id,
             'title' => 'Sooner',
             'due_date' => '2026-07-10',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $response = $this->actingAs($user1, 'sanctum')
@@ -93,6 +143,7 @@ class TodoTest extends TestCase
             'created_by' => $user1->id,
             'assigned_to' => $user2->id,
             'title' => 'Assigned to Bob',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         Todo::create([
@@ -100,6 +151,7 @@ class TodoTest extends TestCase
             'created_by' => $user1->id,
             'assigned_to' => null,
             'title' => 'Shared task',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $this->actingAs($user1, 'sanctum')
@@ -115,39 +167,32 @@ class TodoTest extends TestCase
             ->assertJsonPath('data.0.title', 'Shared task');
     }
 
-    public function test_member_can_filter_todos_by_is_done(): void
+    public function test_member_can_filter_todos_by_status(): void
     {
         [$pod, $user1] = $this->createActivePodPair();
 
         Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'title' => 'Done task',
-            'is_done' => true,
-            'completed_at' => now(),
+            'title' => 'Pending task',
+            'status' => Todo::STATUS_PENDING,
         ]);
 
         Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'title' => 'Open task',
-            'is_done' => false,
+            'title' => 'Active task',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $this->actingAs($user1, 'sanctum')
-            ->getJson("/api/v1/pods/{$pod->id}/todos?is_done=1")
+            ->getJson("/api/v1/pods/{$pod->id}/todos?status=pending")
             ->assertStatus(200)
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.title', 'Done task');
-
-        $this->actingAs($user1, 'sanctum')
-            ->getJson("/api/v1/pods/{$pod->id}/todos?is_done=0")
-            ->assertStatus(200)
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.title', 'Open task');
+            ->assertJsonPath('data.0.title', 'Pending task');
     }
 
-    public function test_member_can_update_todo(): void
+    public function test_member_can_update_active_todo(): void
     {
         [$pod, $user1] = $this->createActivePodPair();
 
@@ -155,6 +200,7 @@ class TodoTest extends TestCase
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
             'title' => 'Old title',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $response = $this->actingAs($user1, 'sanctum')
@@ -168,105 +214,183 @@ class TodoTest extends TestCase
             ->assertJsonPath('data.notes', 'Updated notes');
     }
 
-    public function test_marking_todo_done_sets_completed_at(): void
+    public function test_cannot_update_non_active_todo_fields(): void
     {
         [$pod, $user1] = $this->createActivePodPair();
 
         $todo = Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'title' => 'Task',
-            'is_done' => false,
+            'title' => 'Pending task',
+            'status' => Todo::STATUS_PENDING,
         ]);
 
-        $response = $this->actingAs($user1, 'sanctum')
+        $this->actingAs($user1, 'sanctum')
             ->patchJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}", [
-                'is_done' => true,
-            ]);
-
-        $response->assertStatus(200)
-            ->assertJsonPath('data.is_done', true);
-
-        $this->assertNotNull($response->json('data.completed_at'));
-        $this->assertNotNull(Todo::find($todo->id)->completed_at);
+                'title' => 'New title',
+            ])
+            ->assertStatus(422);
     }
 
-    public function test_marking_todo_undone_clears_completed_at(): void
-    {
-        [$pod, $user1] = $this->createActivePodPair();
-
-        $todo = Todo::create([
-            'pod_id' => $pod->id,
-            'created_by' => $user1->id,
-            'title' => 'Task',
-            'is_done' => true,
-            'completed_at' => now(),
-        ]);
-
-        $response = $this->actingAs($user1, 'sanctum')
-            ->patchJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}", [
-                'is_done' => false,
-            ]);
-
-        $response->assertStatus(200)
-            ->assertJsonPath('data.is_done', false)
-            ->assertJsonPath('data.completed_at', null);
-
-        $this->assertNull(Todo::find($todo->id)->completed_at);
-    }
-
-    public function test_creator_can_delete_assigned_todo(): void
+    public function test_each_member_toggles_their_own_completion_independently(): void
     {
         [$pod, $user1, $user2] = $this->createActivePodPair();
 
         $todo = Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'assigned_to' => $user2->id,
-            'title' => 'Assigned task',
+            'title' => 'Task',
+            'status' => Todo::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->patchJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}", [
+                'my_completed' => true,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.my_completed', true);
+
+        $this->assertDatabaseHas('todo_completions', [
+            'todo_id' => $todo->id,
+            'user_id' => $user1->id,
+        ]);
+
+        $this->actingAs($user2, 'sanctum')
+            ->getJson("/api/v1/pods/{$pod->id}/todos")
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.my_completed', false);
+
+        $this->actingAs($user2, 'sanctum')
+            ->patchJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}", [
+                'my_completed' => true,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.my_completed', true);
+
+        $this->assertEquals(2, TodoCompletion::where('todo_id', $todo->id)->count());
+    }
+
+    public function test_member_can_uncheck_their_completion(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'title' => 'Task',
+            'status' => Todo::STATUS_ACTIVE,
+        ]);
+
+        TodoCompletion::create([
+            'todo_id' => $todo->id,
+            'user_id' => $user1->id,
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->patchJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}", [
+                'my_completed' => false,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.my_completed', false);
+
+        $this->assertDatabaseMissing('todo_completions', [
+            'todo_id' => $todo->id,
+            'user_id' => $user1->id,
+        ]);
+    }
+
+    public function test_delete_on_active_todo_requests_partner_approval(): void
+    {
+        [$pod, $user1, $user2] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'title' => 'Shared task',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $this->actingAs($user1, 'sanctum')
             ->deleteJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', Todo::STATUS_PENDING_DELETION)
+            ->assertJsonPath('data.deletion_requested_by', $user1->id);
+
+        $this->assertDatabaseHas('todos', [
+            'id' => $todo->id,
+            'status' => Todo::STATUS_PENDING_DELETION,
+        ]);
+
+        $this->actingAs($user2, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}/approve")
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('todos', ['id' => $todo->id]);
     }
 
-    public function test_member_can_delete_unassigned_todo_they_did_not_create(): void
+    public function test_partner_can_reject_deletion_request(): void
     {
         [$pod, $user1, $user2] = $this->createActivePodPair();
 
         $todo = Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'assigned_to' => null,
-            'title' => 'Shared task',
+            'title' => 'Keep me',
+            'status' => Todo::STATUS_PENDING_DELETION,
+            'deletion_requested_by' => $user1->id,
         ]);
 
         $this->actingAs($user2, 'sanctum')
-            ->deleteJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}")
-            ->assertStatus(200);
+            ->postJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}/reject")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', Todo::STATUS_ACTIVE)
+            ->assertJsonPath('data.deletion_requested_by', null);
 
-        $this->assertDatabaseMissing('todos', ['id' => $todo->id]);
+        $this->assertDatabaseHas('todos', [
+            'id' => $todo->id,
+            'status' => Todo::STATUS_ACTIVE,
+        ]);
     }
 
-    public function test_non_creator_cannot_delete_assigned_todo(): void
+    public function test_requester_can_cancel_pending_deletion(): void
     {
-        [$pod, $user1, $user2] = $this->createActivePodPair();
+        [$pod, $user1] = $this->createActivePodPair();
 
         $todo = Todo::create([
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
-            'assigned_to' => $user2->id,
-            'title' => 'Assigned task',
+            'title' => 'Task',
+            'status' => Todo::STATUS_PENDING_DELETION,
+            'deletion_requested_by' => $user1->id,
         ]);
 
-        $this->actingAs($user2, 'sanctum')
+        $this->actingAs($user1, 'sanctum')
             ->deleteJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', Todo::STATUS_ACTIVE);
+
+        $this->assertDatabaseHas('todos', [
+            'id' => $todo->id,
+            'status' => Todo::STATUS_ACTIVE,
+            'deletion_requested_by' => null,
+        ]);
+    }
+
+    public function test_proposer_cannot_approve_own_todo(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'title' => 'Task',
+            'status' => Todo::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}/approve")
             ->assertStatus(403);
-
-        $this->assertDatabaseHas('todos', ['id' => $todo->id]);
     }
 
     public function test_non_member_cannot_access_todos(): void
@@ -278,6 +402,7 @@ class TodoTest extends TestCase
             'pod_id' => $pod->id,
             'created_by' => $user1->id,
             'title' => 'Task',
+            'status' => Todo::STATUS_ACTIVE,
         ]);
 
         $this->actingAs($outsider, 'sanctum')

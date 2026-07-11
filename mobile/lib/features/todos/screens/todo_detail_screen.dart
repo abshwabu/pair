@@ -33,6 +33,7 @@ class TodoDetailScreen extends ConsumerWidget {
         ? podAsync.asData?.value.activePartnerFor(currentUserId)
         : null;
     final todo = notifier.todoById(todoId);
+    final partnerId = partner?.user.id;
 
     if (currentUserId == null || todosState.isLoading && todo == null) {
       return const Scaffold(
@@ -55,58 +56,85 @@ class TodoDetailScreen extends ConsumerWidget {
       );
     }
 
+    final needsMyApproval = (todo.isPending && todo.createdBy != currentUserId) ||
+        (todo.isPendingDeletion && todo.deletionRequestedBy != currentUserId);
+    final waitingOnPartner =
+        (todo.isPending && todo.createdBy == currentUserId) ||
+            (todo.isPendingDeletion &&
+                todo.deletionRequestedBy == currentUserId);
+
     return Scaffold(
       appBar: PairAppBar(
         title: 'Todo',
         fallbackRoute: AppRoutes.todoListPath(podId),
         actions: [
-          IconButton(
-            onPressed: () => showTodoFormSheet(
-              context: context,
-              ref: ref,
-              podId: podId,
-              currentUserId: currentUserId,
-              partnerUserId: partner?.user.id,
-              existing: todo,
+          if (todo.isActive)
+            IconButton(
+              onPressed: () => showTodoFormSheet(
+                context: context,
+                ref: ref,
+                podId: podId,
+                currentUserId: currentUserId,
+                partnerUserId: partner?.user.id,
+                existing: todo,
+              ),
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit',
             ),
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit',
-          ),
-          IconButton(
-            onPressed: () => _confirmDelete(context, ref, notifier),
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Delete',
-          ),
         ],
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
+            if (todo.isPending)
+              _StatusBanner(
+                message: waitingOnPartner
+                    ? 'Waiting for your partner to approve this todo.'
+                    : 'Your partner proposed this todo.',
+              )
+            else if (todo.isPendingDeletion)
+              _StatusBanner(
+                message: waitingOnPartner
+                    ? 'Waiting for your partner to approve removal.'
+                    : 'Your partner wants to remove this todo.',
+              ),
             Row(
               children: [
-                Checkbox(
-                  value: todo.isDone,
-                  onChanged: (_) async {
-                    final error = await notifier.toggleDone(todo.id);
-                    if (error != null && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
-                    }
-                  },
-                ),
+                if (todo.isActive)
+                  Checkbox(
+                    value: todo.myCompleted,
+                    onChanged: (_) async {
+                      final error = await notifier.toggleMyCompletion(todo.id);
+                      if (error != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error)),
+                        );
+                      }
+                    },
+                  ),
                 Expanded(
                   child: Text(
                     todo.title,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       decoration:
-                          todo.isDone ? TextDecoration.lineThrough : null,
+                          todo.myCompleted ? TextDecoration.lineThrough : null,
                     ),
                   ),
                 ),
               ],
             ),
+            if (todo.isActive && partnerId != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                todo.isCompletedBy(partnerId)
+                    ? '${partner!.user.name} has completed their check-off'
+                    : '${partner!.user.name} has not checked off yet',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             assigneeChipForTodo(
               assignedTo: todo.assignedTo,
@@ -129,38 +157,91 @@ class TodoDetailScreen extends ConsumerWidget {
               Text(todo.notes!, style: theme.textTheme.bodyLarge),
             ],
             const SizedBox(height: AppSpacing.xl),
-            PrimaryButton(
-              label: 'Edit todo',
-              onPressed: () => showTodoFormSheet(
-                context: context,
-                ref: ref,
-                podId: podId,
-                currentUserId: currentUserId,
-                partnerUserId: partner?.user.id,
-                existing: todo,
+            if (needsMyApproval) ...[
+              PrimaryButton(
+                label: todo.isPendingDeletion ? 'Approve removal' : 'Approve todo',
+                onPressed: () async {
+                  final error = await notifier.approveTodo(todo.id);
+                  if (!context.mounted) return;
+                  if (error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(error)),
+                    );
+                    return;
+                  }
+                  context.pop();
+                },
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton(
-              onPressed: () => _confirmDelete(context, ref, notifier),
-              child: const Text('Delete todo'),
-            ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton(
+                onPressed: () async {
+                  final error = await notifier.rejectTodo(todo.id);
+                  if (!context.mounted) return;
+                  if (error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(error)),
+                    );
+                    return;
+                  }
+                  context.pop();
+                },
+                child: Text(todo.isPendingDeletion ? 'Keep todo' : 'Decline'),
+              ),
+            ] else if (todo.isActive) ...[
+              PrimaryButton(
+                label: 'Edit todo',
+                onPressed: () => showTodoFormSheet(
+                  context: context,
+                  ref: ref,
+                  podId: podId,
+                  currentUserId: currentUserId,
+                  partnerUserId: partner?.user.id,
+                  existing: todo,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton(
+                onPressed: () => _confirmDeletion(context, notifier, todo.id),
+                child: const Text('Request removal'),
+              ),
+            ] else if (waitingOnPartner) ...[
+              OutlinedButton(
+                onPressed: () async {
+                  final error = await notifier.requestDeletion(todo.id);
+                  if (!context.mounted) return;
+                  if (error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(error)),
+                    );
+                    return;
+                  }
+                  context.pop();
+                },
+                child: Text(
+                  todo.isPending
+                      ? 'Cancel proposal'
+                      : 'Cancel removal request',
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Future<void> _confirmDelete(
+  Future<void> _confirmDeletion(
     BuildContext context,
-    WidgetRef ref,
     TodosNotifier notifier,
+    String todoId,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete todo?'),
-        content: const Text('This action cannot be undone.'),
+        title: const Text('Request removal?'),
+        content: const Text(
+          'Your partner must approve before this todo is removed from the pod list.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -168,7 +249,7 @@ class TodoDetailScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: const Text('Request removal'),
           ),
         ],
       ),
@@ -176,7 +257,7 @@ class TodoDetailScreen extends ConsumerWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final error = await notifier.deleteTodo(todoId);
+    final error = await notifier.requestDeletion(todoId);
     if (!context.mounted) return;
 
     if (error != null) {
@@ -187,5 +268,25 @@ class TodoDetailScreen extends ConsumerWidget {
     }
 
     context.pop();
+  }
+}
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Text(message, style: theme.textTheme.bodyMedium),
+      ),
+    );
   }
 }

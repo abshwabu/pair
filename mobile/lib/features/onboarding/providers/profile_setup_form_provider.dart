@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:pair/core/network/api_response.dart';
+import 'package:pair/core/network/media_url.dart';
 import 'package:pair/features/auth/services/auth_service.dart';
 import 'package:pair/features/onboarding/data/onboarding_options.dart';
 import 'package:pair/features/onboarding/services/profile_service.dart';
@@ -154,8 +155,9 @@ class ProfileSetupFormNotifier extends StateNotifier<ProfileSetupFormState> {
     if (state.avatarPath != null) {
       return FileImage(File(state.avatarPath!));
     }
-    if (state.avatarUrl != null && state.avatarUrl!.isNotEmpty) {
-      return NetworkImage(state.avatarUrl!);
+    final resolved = resolveMediaUrl(state.avatarUrl);
+    if (resolved != null) {
+      return NetworkImage(resolved);
     }
     return null;
   }
