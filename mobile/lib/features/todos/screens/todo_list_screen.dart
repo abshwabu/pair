@@ -159,8 +159,8 @@ class _TodoListBody extends ConsumerWidget {
       todos: todos,
       currentUserId: currentUserId,
     );
-    final open = groupOpenTodos(todos);
-    final done = groupDoneTodos(todos);
+    final open = groupOpenTodos(todos, currentUserId: currentUserId);
+    final done = groupDoneTodos(todos, currentUserId: currentUserId);
 
     if (needsApproval.isEmpty &&
         waitingOnPartner.isEmpty &&
@@ -266,7 +266,10 @@ class _TodoListBody extends ConsumerWidget {
                     partner: partner,
                     onToggle: (_) async {
                       final error =
-                          await notifier.toggleMyCompletion(open[i].id);
+                          await notifier.toggleMyCompletion(
+                            open[i].id,
+                            currentUserId: currentUserId,
+                          );
                       if (error != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(error)),
@@ -310,7 +313,10 @@ class _TodoListBody extends ConsumerWidget {
                     partner: partner,
                     onToggle: (_) async {
                       final error =
-                          await notifier.toggleMyCompletion(done[i].id);
+                          await notifier.toggleMyCompletion(
+                            done[i].id,
+                            currentUserId: currentUserId,
+                          );
                       if (error != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(error)),

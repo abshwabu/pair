@@ -38,14 +38,14 @@ class CheckInService {
       fromJsonT: (json) => json as Map<String, dynamic>,
     );
 
-    final streakJson = response.meta?['streak'] as Map<String, dynamic>?;
-    if (streakJson == null) {
-      throw const FormatException('Missing streak in check-in response');
-    }
+    final streakJson = response.meta?['streak'];
+    final streak = streakJson is Map<String, dynamic>
+        ? StreakModel.fromJson(streakJson)
+        : await getStreak(podId);
 
     return CheckInResult(
       checkIn: CheckInModel.fromJson(response.data!),
-      streak: StreakModel.fromJson(streakJson),
+      streak: streak,
     );
   }
 

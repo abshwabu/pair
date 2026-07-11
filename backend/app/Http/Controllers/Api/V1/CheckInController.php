@@ -73,6 +73,7 @@ class CheckInController extends Controller
             'note' => $request->validated('note'),
         ]);
 
+        $checkIn->refresh();
         $checkIn->load('user:id,name,avatar_url');
 
         $this->streakService->recalculateAfterCheckIn($pod);
@@ -131,7 +132,7 @@ class CheckInController extends Controller
             ],
             'check_in_date' => $checkIn->check_in_date?->toDateString(),
             'note' => $checkIn->note,
-            'created_at' => $checkIn->created_at?->toIso8601String(),
+            'created_at' => ($checkIn->created_at ?? now())->toIso8601String(),
         ];
     }
 

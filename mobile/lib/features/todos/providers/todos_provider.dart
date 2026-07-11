@@ -99,7 +99,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
     int? limit,
   }) {
     final open = state.todos
-        .where((todo) => todo.isActive && !todo.myCompleted)
+        .where((todo) => todo.isActive && !todo.isDoneBy(currentUserId))
         .toList()
       ..sort(_compareByDueDate);
     if (limit != null && open.length > limit) {
@@ -115,7 +115,10 @@ class TodosNotifier extends StateNotifier<TodosState> {
     return null;
   }
 
-  Future<String?> toggleMyCompletion(String todoId) async {
+  Future<String?> toggleMyCompletion(
+    String todoId, {
+    required String currentUserId,
+  }) async {
     final index = state.todos.indexWhere((todo) => todo.id == todoId);
     if (index == -1) return 'Todo not found.';
 
@@ -124,7 +127,15 @@ class TodosNotifier extends StateNotifier<TodosState> {
       return 'You can only check off active todos.';
     }
 
-    final optimistic = original.copyWith(myCompleted: !original.myCompleted);
+    final nextDone = !original.isDoneBy(currentUserId);
+    final optimistic = original.copyWith(
+      myCompleted: nextDone,
+      completions: _toggleCompletionForUser(
+        original.completions,
+        userId: currentUserId,
+        completed: nextDone,
+      ),
+    );
     final updated = [...state.todos];
     updated[index] = optimistic;
     state = state.copyWith(todos: updated);
@@ -133,7 +144,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
       final result = await _ref.read(todoServiceProvider).updateTodo(
             podId: _podId,
             todoId: todoId,
-            myCompleted: optimistic.myCompleted,
+            myCompleted: nextDone,
           );
       updated[index] = result;
       state = state.copyWith(todos: updated);
@@ -154,6 +165,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
     String? notes,
     DateTime? dueDate,
     String? assignedTo,
+    TodoRecurrence? recurrence,
   }) async {
     try {
       final created = await _ref.read(todoServiceProvider).createTodo(
@@ -162,6 +174,7 @@ class TodosNotifier extends StateNotifier<TodosState> {
             notes: notes,
             dueDate: dueDate,
             assignedTo: assignedTo,
+            recurrence: recurrence,
           );
       state = state.copyWith(todos: [...state.todos, created]);
       return null;
@@ -178,9 +191,11 @@ class TodosNotifier extends StateNotifier<TodosState> {
     String? notes,
     DateTime? dueDate,
     String? assignedTo,
+    TodoRecurrence? recurrence,
     bool clearNotes = false,
     bool clearDueDate = false,
     bool clearAssignedTo = false,
+    bool clearRecurrence = false,
   }) async {
     try {
       final updated = await _ref.read(todoServiceProvider).updateTodo(
@@ -190,9 +205,11 @@ class TodosNotifier extends StateNotifier<TodosState> {
             notes: notes,
             dueDate: dueDate,
             assignedTo: assignedTo,
+            recurrence: recurrence,
             clearNotes: clearNotes,
             clearDueDate: clearDueDate,
             clearAssignedTo: clearAssignedTo,
+            clearRecurrence: clearRecurrence,
           );
 
       final todos = [
@@ -320,6 +337,27 @@ class TodosNotifier extends StateNotifier<TodosState> {
     if (b.dueDate == null) return -1;
     return a.dueDate!.compareTo(b.dueDate!);
   }
+
+  static List<TodoCompletionModel> _toggleCompletionForUser(
+    List<TodoCompletionModel> completions, {
+    required String userId,
+    required bool completed,
+  }) {
+    if (!completed) {
+      return completions
+          .where((completion) => completion.userId != userId)
+          .toList();
+    }
+
+    if (completions.any((completion) => completion.userId == userId)) {
+      return completions;
+    }
+
+    return [
+      ...completions,
+      TodoCompletionModel(userId: userId, completedAt: DateTime.now()),
+    ];
+  }
 }
 
 final todosProvider =
@@ -327,17 +365,23 @@ final todosProvider =
   (ref, podId) => TodosNotifier(ref, podId),
 );
 
-List<TodoModel> groupOpenTodos(List<TodoModel> todos) {
+List<TodoModel> groupOpenTodos(
+  List<TodoModel> todos, {
+  required String currentUserId,
+}) {
   final open = todos
-      .where((todo) => todo.isActive && !todo.myCompleted)
+      .where((todo) => todo.isActive && !todo.isDoneBy(currentUserId))
       .toList()
     ..sort(TodosNotifier._compareByDueDate);
   return open;
 }
 
-List<TodoModel> groupDoneTodos(List<TodoModel> todos) {
+List<TodoModel> groupDoneTodos(
+  List<TodoModel> todos, {
+  required String currentUserId,
+}) {
   final done = todos
-      .where((todo) => todo.isActive && todo.myCompleted)
+      .where((todo) => todo.isActive && todo.isDoneBy(currentUserId))
       .toList()
     ..sort(TodosNotifier._compareByDueDate);
   return done;
@@ -367,6 +411,15 @@ List<TodoModel> groupWaitingOnPartnerTodos({
     }
     return false;
   }).toList();
+}
+
+String formatRecurrenceLabel(TodoRecurrence recurrence) {
+  return switch (recurrence) {
+    TodoRecurrence.daily => 'Daily',
+    TodoRecurrence.weekly => 'Weekly',
+    TodoRecurrence.monthly => 'Monthly',
+    TodoRecurrence.yearly => 'Yearly',
+  };
 }
 
 String formatTodoDueDate(DateTime date) {

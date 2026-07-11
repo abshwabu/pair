@@ -27,7 +27,7 @@ class CheckInModel {
     required this.user,
     required this.checkInDate,
     this.note,
-    required this.createdAt,
+    this.createdAt,
   });
 
   final String id;
@@ -35,7 +35,7 @@ class CheckInModel {
   final CheckInUser user;
   final String checkInDate;
   final String? note;
-  final DateTime createdAt;
+  final DateTime? createdAt;
 
   factory CheckInModel.fromJson(Map<String, dynamic> json) {
     return CheckInModel(
@@ -44,8 +44,13 @@ class CheckInModel {
       user: CheckInUser.fromJson(json['user'] as Map<String, dynamic>),
       checkInDate: json['check_in_date'] as String,
       note: json['note'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseDateTime(json['created_at']),
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value as String);
   }
 }
 

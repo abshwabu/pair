@@ -70,8 +70,10 @@ class OpenTodosPreview extends ConsumerWidget {
               currentUserId: currentUserId,
               partner: partner,
               onToggle: (_) async {
-                final error =
-                    await notifier.toggleMyCompletion(openTodos[i].id);
+                final error = await notifier.toggleMyCompletion(
+                  openTodos[i].id,
+                  currentUserId: currentUserId,
+                );
                 if (error != null && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(error)),

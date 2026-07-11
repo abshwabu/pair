@@ -63,6 +63,7 @@ class TodoDetailScreen extends ConsumerWidget {
         (todo.isPending && todo.createdBy == currentUserId) ||
             (todo.isPendingDeletion &&
                 todo.deletionRequestedBy == currentUserId);
+    final myDone = todo.isDoneBy(currentUserId);
 
     return Scaffold(
       appBar: PairAppBar(
@@ -104,9 +105,12 @@ class TodoDetailScreen extends ConsumerWidget {
               children: [
                 if (todo.isActive)
                   Checkbox(
-                    value: todo.myCompleted,
+                    value: myDone,
                     onChanged: (_) async {
-                      final error = await notifier.toggleMyCompletion(todo.id);
+                      final error = await notifier.toggleMyCompletion(
+                        todo.id,
+                        currentUserId: currentUserId,
+                      );
                       if (error != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(error)),
@@ -118,8 +122,7 @@ class TodoDetailScreen extends ConsumerWidget {
                   child: Text(
                     todo.title,
                     style: theme.textTheme.headlineMedium?.copyWith(
-                      decoration:
-                          todo.myCompleted ? TextDecoration.lineThrough : null,
+                      decoration: myDone ? TextDecoration.lineThrough : null,
                     ),
                   ),
                 ),
@@ -148,6 +151,15 @@ class TodoDetailScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 formatTodoDueDate(todo.dueDate!),
+                style: theme.textTheme.bodyLarge,
+              ),
+            ],
+            if (todo.isRecurring) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text('Repeats', style: theme.textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                formatRecurrenceLabel(todo.recurrence!),
                 style: theme.textTheme.bodyLarge,
               ),
             ],

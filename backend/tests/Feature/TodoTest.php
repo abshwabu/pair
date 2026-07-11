@@ -449,6 +449,65 @@ class TodoTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_member_can_create_recurring_personal_todo(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $response = $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos", [
+                'title' => 'Daily stretch',
+                'assigned_to' => $user1->id,
+                'recurrence' => 'daily',
+                'due_date' => '2026-07-11',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', Todo::STATUS_ACTIVE)
+            ->assertJsonPath('data.recurrence', 'daily');
+
+        $this->assertStringStartsWith(
+            '2026-07-11',
+            (string) $response->json('data.due_date'),
+        );
+    }
+
+    public function test_recurring_todo_advances_and_clears_completions_when_overdue(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'assigned_to' => $user1->id,
+            'title' => 'Daily task',
+            'status' => Todo::STATUS_ACTIVE,
+            'recurrence' => 'daily',
+            'due_date' => now()->subDays(2)->toDateString(),
+        ]);
+
+        TodoCompletion::create([
+            'todo_id' => $todo->id,
+            'user_id' => $user1->id,
+            'completed_at' => now(),
+        ]);
+
+        $this->travelTo(now()->startOfDay());
+
+        $this->actingAs($user1, 'sanctum')
+            ->getJson("/api/v1/pods/{$pod->id}/todos")
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.recurrence', 'daily')
+            ->assertJsonPath('data.0.my_completed', false);
+
+        $todo->refresh();
+
+        $this->assertTrue($todo->due_date->gte(now()->startOfDay()));
+        $this->assertDatabaseMissing('todo_completions', [
+            'todo_id' => $todo->id,
+            'user_id' => $user1->id,
+        ]);
+    }
+
     public function test_non_member_cannot_access_todos(): void
     {
         [$pod, $user1] = $this->createActivePodPair();

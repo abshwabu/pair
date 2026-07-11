@@ -49,6 +49,7 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
   late final TextEditingController _notesController;
   DateTime? _dueDate;
   late TodoAssigneeOption _assignee;
+  TodoRecurrence? _recurrence;
   bool _isSubmitting = false;
   String? _error;
 
@@ -63,6 +64,7 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
     _titleController = TextEditingController(text: existing?.title ?? '');
     _notesController = TextEditingController(text: existing?.notes ?? '');
     _dueDate = existing?.dueDate;
+    _recurrence = existing?.recurrence;
     _assignee = existing != null
         ? assigneeOptionForTodo(
             todo: existing,
@@ -104,6 +106,10 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
       return;
     }
 
+    if (_recurrence != null && _dueDate == null) {
+      _dueDate = DateTime.now();
+    }
+
     setState(() {
       _isSubmitting = true;
       _error = null;
@@ -126,9 +132,12 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
         notes: notes.isEmpty ? null : notes,
         dueDate: _dueDate,
         assignedTo: assignedTo,
+        recurrence: _recurrence,
         clearNotes: notes.isEmpty,
         clearDueDate: _dueDate == null,
         clearAssignedTo: assignedTo == null,
+        clearRecurrence:
+            _recurrence == null && widget.existing!.recurrence != null,
       );
     } else {
       error = await notifier.createTodo(
@@ -136,6 +145,7 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
         notes: notes.isEmpty ? null : notes,
         dueDate: _dueDate,
         assignedTo: assignedTo,
+        recurrence: _recurrence,
       );
     }
 
@@ -151,7 +161,7 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
 
     if (!mounted) return;
 
-    if (!_isEditing) {
+    if (!_isEditing && _needsPartnerApproval) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Todo sent — waiting for your partner to approve.'),
@@ -218,13 +228,52 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
                   : 'Due ${formatTodoDueDate(_dueDate!)}',
             ),
           ),
-          if (_dueDate != null) ...[
+          if (_dueDate != null && _recurrence == null) ...[
             const SizedBox(height: AppSpacing.xs),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: _isSubmitting ? null : () => setState(() => _dueDate = null),
                 child: const Text('Clear due date'),
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<TodoRecurrence?>(
+            value: _recurrence,
+            decoration: const InputDecoration(
+              labelText: 'Repeat',
+              prefixIcon: Icon(Icons.repeat),
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Does not repeat'),
+              ),
+              for (final option in TodoRecurrence.values)
+                DropdownMenuItem(
+                  value: option,
+                  child: Text(formatRecurrenceLabel(option)),
+                ),
+            ],
+            onChanged: _isSubmitting
+                ? null
+                : (value) {
+                    setState(() {
+                      _recurrence = value;
+                      if (value != null && _dueDate == null) {
+                        final now = DateTime.now();
+                        _dueDate = DateTime(now.year, now.month, now.day);
+                      }
+                    });
+                  },
+          ),
+          if (_recurrence != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Check-offs reset when a new ${formatRecurrenceLabel(_recurrence!).toLowerCase()} period starts.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],

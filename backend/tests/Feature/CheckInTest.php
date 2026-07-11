@@ -38,7 +38,8 @@ class CheckInTest extends TestCase
                 'note' => 'Done for today',
             ])
             ->assertStatus(201)
-            ->assertJsonPath('data.note', 'Done for today');
+            ->assertJsonPath('data.note', 'Done for today')
+            ->assertJsonPath('data.created_at', fn ($value) => ! empty($value));
 
         $this->actingAs($user1, 'sanctum')
             ->getJson("/api/v1/pods/{$pod->id}/streak")

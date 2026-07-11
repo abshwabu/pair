@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Pod;
+use App\Support\TodoRecurrence;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,6 +26,7 @@ class UpdateTodoRequest extends FormRequest
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'due_date' => ['sometimes', 'nullable', 'date'],
+            'recurrence' => ['sometimes', 'nullable', 'string', Rule::in(TodoRecurrence::values())],
             'assigned_to' => [
                 'sometimes',
                 'nullable',

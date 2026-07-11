@@ -11,7 +11,7 @@ class CheckIn extends Model
 {
     use HasFactory, HasUuids;
 
-    public $timestamps = false;
+    public const UPDATED_AT = null;
 
     protected $fillable = [
         'pod_id',

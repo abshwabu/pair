@@ -26,6 +26,7 @@ class TodoService {
     String? notes,
     DateTime? dueDate,
     String? assignedTo,
+    TodoRecurrence? recurrence,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/pods/$podId/todos',
@@ -33,6 +34,7 @@ class TodoService {
         'title': title,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
         if (dueDate != null) 'due_date': _formatDate(dueDate),
+        if (recurrence != null) 'recurrence': recurrence.apiValue,
         'assigned_to': assignedTo,
       },
       fromJsonT: (json) => json as Map<String, dynamic>,
@@ -47,10 +49,12 @@ class TodoService {
     String? notes,
     DateTime? dueDate,
     String? assignedTo,
+    TodoRecurrence? recurrence,
     bool? myCompleted,
     bool clearNotes = false,
     bool clearDueDate = false,
     bool clearAssignedTo = false,
+    bool clearRecurrence = false,
   }) async {
     final data = <String, dynamic>{};
 
@@ -66,6 +70,11 @@ class TodoService {
       data['assigned_to'] = assignedTo;
     } else if (clearAssignedTo) {
       data['assigned_to'] = null;
+    }
+    if (recurrence != null) {
+      data['recurrence'] = recurrence.apiValue;
+    } else if (clearRecurrence) {
+      data['recurrence'] = null;
     }
     if (myCompleted != null) data['my_completed'] = myCompleted;
 

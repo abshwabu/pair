@@ -29,6 +29,7 @@ class TodoRow extends StatelessWidget {
     final partnerId = partner?.user.id;
     final partnerCompleted =
         partnerId != null && todo.isCompletedBy(partnerId);
+    final myDone = todo.isDoneBy(currentUserId);
 
     return InkWell(
       onTap: onTap,
@@ -44,7 +45,7 @@ class TodoRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.sm),
                 child: Checkbox(
-                  value: todo.myCompleted,
+                  value: myDone,
                   onChanged: (value) {
                     if (value != null) onToggle(value);
                   },
@@ -57,10 +58,10 @@ class TodoRow extends StatelessWidget {
                   Text(
                     todo.title,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      decoration: todo.myCompleted
+                      decoration: myDone
                           ? TextDecoration.lineThrough
                           : null,
-                      color: todo.myCompleted
+                      color: myDone
                           ? theme.colorScheme.onSurfaceVariant
                           : null,
                     ),
@@ -68,7 +69,15 @@ class TodoRow extends StatelessWidget {
                   if (todo.dueDate != null) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      'Due ${formatTodoDueDate(todo.dueDate!)}',
+                      todo.isRecurring
+                          ? 'Due ${formatTodoDueDate(todo.dueDate!)} · ${formatRecurrenceLabel(todo.recurrence!)}'
+                          : 'Due ${formatTodoDueDate(todo.dueDate!)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ] else if (todo.isRecurring) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      formatRecurrenceLabel(todo.recurrence!),
                       style: theme.textTheme.bodySmall,
                     ),
                   ],

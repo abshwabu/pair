@@ -20,6 +20,7 @@ class Todo extends Model
         'title',
         'notes',
         'due_date',
+        'recurrence',
         'is_done',
         'completed_at',
     ];

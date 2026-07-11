@@ -22,6 +22,23 @@ class TodoCompletionModel {
 
 enum TodoStatus { pending, active, pendingDeletion }
 
+enum TodoRecurrence { daily, weekly, monthly, yearly }
+
+extension TodoRecurrenceApi on TodoRecurrence {
+  String get apiValue => name;
+
+  static TodoRecurrence? fromApi(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return switch (value) {
+      'daily' => TodoRecurrence.daily,
+      'weekly' => TodoRecurrence.weekly,
+      'monthly' => TodoRecurrence.monthly,
+      'yearly' => TodoRecurrence.yearly,
+      _ => null,
+    };
+  }
+}
+
 class TodoModel {
   const TodoModel({
     required this.id,
@@ -33,6 +50,7 @@ class TodoModel {
     this.assignedTo,
     this.notes,
     this.dueDate,
+    this.recurrence,
     this.completions = const [],
     this.myCompleted = false,
   });
@@ -46,16 +64,21 @@ class TodoModel {
   final String? assignedTo;
   final String? notes;
   final DateTime? dueDate;
+  final TodoRecurrence? recurrence;
   final List<TodoCompletionModel> completions;
   final bool myCompleted;
 
   bool get isActive => status == TodoStatus.active;
   bool get isPending => status == TodoStatus.pending;
   bool get isPendingDeletion => status == TodoStatus.pendingDeletion;
+  bool get isRecurring => recurrence != null;
 
   bool isCompletedBy(String userId) {
     return completions.any((completion) => completion.userId == userId);
   }
+
+  /// Prefer this in UI — derived from per-user completion records.
+  bool isDoneBy(String userId) => isCompletedBy(userId);
 
   bool get isFullyCompleted {
     return completions.length >= 2;
@@ -77,11 +100,13 @@ class TodoModel {
     String? assignedTo,
     String? notes,
     DateTime? dueDate,
+    TodoRecurrence? recurrence,
     List<TodoCompletionModel>? completions,
     bool? myCompleted,
     bool clearAssignedTo = false,
     bool clearNotes = false,
     bool clearDueDate = false,
+    bool clearRecurrence = false,
     bool clearDeletionRequestedBy = false,
   }) {
     return TodoModel(
@@ -96,6 +121,7 @@ class TodoModel {
       assignedTo: clearAssignedTo ? null : assignedTo ?? this.assignedTo,
       notes: clearNotes ? null : notes ?? this.notes,
       dueDate: clearDueDate ? null : dueDate ?? this.dueDate,
+      recurrence: clearRecurrence ? null : recurrence ?? this.recurrence,
       completions: completions ?? this.completions,
       myCompleted: myCompleted ?? this.myCompleted,
     );
@@ -112,11 +138,12 @@ class TodoModel {
       assignedTo: json['assigned_to'] as String?,
       notes: json['notes'] as String?,
       dueDate: _parseDate(json['due_date']),
+      recurrence: TodoRecurrenceApi.fromApi(json['recurrence'] as String?),
       completions: (json['completions'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .map(TodoCompletionModel.fromJson)
           .toList(),
-      myCompleted: json['my_completed'] as bool? ?? false,
+      myCompleted: _readBool(json['my_completed']),
     );
   }
 
@@ -131,6 +158,16 @@ class TodoModel {
   static DateTime? _parseDate(dynamic value) {
     if (value == null) return null;
     return DateTime.parse(value as String);
+  }
+
+  static bool _readBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      return value == 'true' || value == '1';
+    }
+    return false;
   }
 }
 

@@ -39,7 +39,7 @@ class AssigneeChip extends StatelessWidget {
           CircleAvatar(
             radius: radius,
             backgroundColor: theme.colorScheme.primaryContainer,
-            backgroundImage: hasAvatar ? NetworkImage(resolvedUrl!) : null,
+            backgroundImage: hasAvatar ? NetworkImage(resolvedUrl) : null,
             child: hasAvatar
                 ? null
                 : Text(

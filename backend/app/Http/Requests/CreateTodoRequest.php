@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Pod;
+use App\Support\TodoRecurrence;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,8 @@ class CreateTodoRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'required_with:recurrence'],
+            'recurrence' => ['nullable', 'string', Rule::in(TodoRecurrence::values())],
             'assigned_to' => [
                 'nullable',
                 'uuid',

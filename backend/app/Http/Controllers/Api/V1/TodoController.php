@@ -9,6 +9,7 @@ use App\Models\Pod;
 use App\Models\Todo;
 use App\Models\TodoCompletion;
 use App\Services\NotificationService;
+use App\Support\TodoRecurrence;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class TodoController extends Controller
     public function index(Request $request, Pod $pod): JsonResponse
     {
         Gate::authorize('view', $pod);
+
+        $this->advanceRecurringTodos($pod);
 
         $query = $pod->todos()->with('completions');
 
@@ -60,6 +63,11 @@ class TodoController extends Controller
 
         $userId = $request->user()->id;
         $validated = $request->validated();
+
+        if (! empty($validated['recurrence']) && empty($validated['due_date'])) {
+            $validated['due_date'] = now()->toDateString();
+        }
+
         $assignedTo = $validated['assigned_to'] ?? null;
         $status = $assignedTo === $userId ? Todo::STATUS_ACTIVE : Todo::STATUS_PENDING;
 
@@ -112,6 +120,22 @@ class TodoController extends Controller
         }
 
         if ($data !== []) {
+            $nextRecurrence = array_key_exists('recurrence', $data)
+                ? $data['recurrence']
+                : $todo->recurrence;
+            $nextDueDate = array_key_exists('due_date', $data)
+                ? $data['due_date']
+                : $todo->due_date?->toDateString();
+
+            if ($nextRecurrence !== null && $nextDueDate === null) {
+                return $this->error(
+                    'Recurring todos require a due date.',
+                    'recurrence_requires_due_date',
+                    null,
+                    422
+                );
+            }
+
             $todo->update($data);
         }
 
@@ -338,6 +362,7 @@ class TodoController extends Controller
             'title' => $todo->title,
             'notes' => $todo->notes,
             'due_date' => $todo->due_date?->toIso8601String(),
+            'recurrence' => $todo->recurrence,
             'completions' => $completions,
             'my_completed' => $todo->completions->contains(
                 fn (TodoCompletion $completion) => $completion->user_id === $viewer->id,
@@ -367,5 +392,16 @@ class TodoController extends Controller
         }
 
         app(NotificationService::class)->send($partner, $type, $payload);
+    }
+
+    private function advanceRecurringTodos(Pod $pod): void
+    {
+        $pod->todos()
+            ->where('status', Todo::STATUS_ACTIVE)
+            ->whereNotNull('recurrence')
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<', now()->toDateString())
+            ->get()
+            ->each(fn (Todo $todo) => TodoRecurrence::advanceOverdue($todo));
     }
 }
