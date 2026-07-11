@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql pgsql bcmath zip gd
+# Install PHP extensions (pcntl required by Reverb + Horizon)
+RUN docker-php-ext-install pdo pdo_pgsql pgsql bcmath zip gd pcntl
 
 # Install Redis extension
 RUN pecl install redis && docker-php-ext-enable redis

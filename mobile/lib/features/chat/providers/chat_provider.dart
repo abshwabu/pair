@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/core/network/realtime_client.dart';
@@ -88,8 +89,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> _init() async {
     await loadInitial();
-    final stream = await _ref.read(realtimeClientProvider).subscribeToPod(_podId);
-    _realtimeSub = stream.listen(_handleRealtimeEvent);
+    try {
+      final stream =
+          await _ref.read(realtimeClientProvider).subscribeToPod(_podId);
+      _realtimeSub = stream.listen(
+        _handleRealtimeEvent,
+        onError: (Object error, StackTrace stackTrace) {
+          if (kDebugMode) {
+            debugPrint('Chat realtime error: $error');
+          }
+        },
+      );
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Chat realtime subscribe failed: $error\n$stackTrace');
+      }
+    }
   }
 
   Future<void> loadInitial() async {
@@ -210,29 +225,35 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void _handleRealtimeEvent(PodRealtimeEvent event) {
     if (event.podId != _podId) return;
 
-    switch (event.eventName) {
-      case 'MessageSent':
-        final incoming = MessageModel.fromBroadcast(
-          podId: _podId,
-          json: event.data,
-        );
-        if (incoming.isFrom(_currentUserId)) {
-          final alreadyHave = state.messages.any(incoming.isDuplicateOf);
-          if (alreadyHave) return;
-        }
-        _appendMessage(incoming);
-      case 'UserTyping':
-        final user = event.data['user'] as Map<String, dynamic>?;
-        final userId = user?['id'] as String?;
-        if (userId == null || userId == _currentUserId) return;
-        state = state.copyWith(
-          partnerIsTyping: true,
-          partnerTypingName: user?['name'] as String?,
-        );
-        _partnerTypingHideTimer?.cancel();
-        _partnerTypingHideTimer = Timer(const Duration(seconds: 4), () {
-          state = state.copyWith(clearPartnerTyping: true);
-        });
+    try {
+      switch (event.eventName) {
+        case 'MessageSent':
+          final incoming = MessageModel.fromBroadcast(
+            podId: _podId,
+            json: event.data,
+          );
+          if (incoming.isFrom(_currentUserId)) {
+            final alreadyHave = state.messages.any(incoming.isDuplicateOf);
+            if (alreadyHave) return;
+          }
+          _appendMessage(incoming);
+        case 'UserTyping':
+          final user = event.data['user'] as Map<String, dynamic>?;
+          final userId = user?['id'] as String?;
+          if (userId == null || userId == _currentUserId) return;
+          state = state.copyWith(
+            partnerIsTyping: true,
+            partnerTypingName: user?['name'] as String?,
+          );
+          _partnerTypingHideTimer?.cancel();
+          _partnerTypingHideTimer = Timer(const Duration(seconds: 4), () {
+            state = state.copyWith(clearPartnerTyping: true);
+          });
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Chat realtime event parse failed: $error\n$stackTrace');
+      }
     }
   }
 

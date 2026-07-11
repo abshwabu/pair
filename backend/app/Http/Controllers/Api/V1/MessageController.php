@@ -65,7 +65,7 @@ class MessageController extends Controller
 
         $message = $message->fresh(['sender:id,name,avatar_url']);
 
-        MessageSent::dispatch($message);
+        $this->broadcastSafely(new MessageSent($message));
         $this->notifyRecipientsAboutMessage($pod, $request->user(), $message);
 
         return $this->success($this->formatMessage($message), null, 201);
@@ -80,7 +80,7 @@ class MessageController extends Controller
 
         Cache::put($this->chatPresenceCacheKey($request->user()->id, $pod->id), true, now()->addMinute());
 
-        UserTyping::dispatch($pod->id, $request->user());
+        $this->broadcastSafely(new UserTyping($pod->id, $request->user()));
 
         return $this->success(['message' => 'Typing indicator sent.']);
     }
@@ -147,5 +147,14 @@ class MessageController extends Controller
     private function chatPresenceCacheKey(string $userId, string $podId): string
     {
         return "chat_presence:{$userId}:{$podId}";
+    }
+
+    private function broadcastSafely(object $event): void
+    {
+        try {
+            event($event);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 }

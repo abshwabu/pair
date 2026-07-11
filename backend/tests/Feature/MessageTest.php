@@ -107,6 +107,7 @@ class MessageTest extends TestCase
 
         $this->assertSame('MessageSent', $event->broadcastAs());
         $this->assertSame([
+            'id' => $message->id,
             'sender' => [
                 'id' => $user1->id,
                 'name' => $user1->name,

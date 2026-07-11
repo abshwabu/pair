@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_pusher_channels/dart_pusher_channels.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pair/core/network/realtime_config.dart';
@@ -26,17 +27,20 @@ class _PodSubscription {
     required this.controller,
     required this.messageSentSub,
     required this.userTypingSub,
+    required this.authErrorSub,
   });
 
   final PrivateChannel channel;
   final StreamController<PodRealtimeEvent> controller;
   final StreamSubscription<ChannelReadEvent> messageSentSub;
   final StreamSubscription<ChannelReadEvent> userTypingSub;
+  final StreamSubscription<ChannelReadEvent> authErrorSub;
   int refCount = 0;
 
   Future<void> dispose() async {
     await messageSentSub.cancel();
     await userTypingSub.cancel();
+    await authErrorSub.cancel();
     channel.unsubscribe();
     await controller.close();
   }
@@ -66,16 +70,28 @@ class RealtimeClient {
       port: ReverbConfig.port,
     );
 
+    if (kDebugMode) {
+      debugPrint(
+        'Realtime: connecting to ${ReverbConfig.wsScheme}://${ReverbConfig.host}:${ReverbConfig.port}',
+      );
+    }
+
     final client = PusherChannelsClient.websocket(
       options: options,
       connectionErrorHandler: (exception, trace, refresh) async {
+        if (kDebugMode) {
+          debugPrint('Realtime: connection error: $exception');
+        }
         refresh();
       },
     );
 
     _connectionSub = client.onConnectionEstablished.listen((_) {
+      if (kDebugMode) {
+        debugPrint('Realtime: connected');
+      }
       for (final subscription in _podSubscriptions.values) {
-        subscription.channel.subscribeIfNotUnsubscribed();
+        subscription.channel.subscribe();
       }
     });
 
@@ -108,16 +124,24 @@ class RealtimeClient {
     final userTypingSub = channel.bind('UserTyping').listen((event) {
       _emitEvent(controller, podId, 'UserTyping', event);
     });
+    final authErrorSub = channel.onAuthenticationSubscriptionFailed().listen((event) {
+      if (kDebugMode) {
+        debugPrint(
+          'Realtime: auth failed for ${_channelName(podId)}: ${event.data}',
+        );
+      }
+    });
 
     final subscription = _PodSubscription(
       channel: channel,
       controller: controller,
       messageSentSub: messageSentSub,
       userTypingSub: userTypingSub,
+      authErrorSub: authErrorSub,
     )..refCount = 1;
 
     _podSubscriptions[podId] = subscription;
-    channel.subscribeIfNotUnsubscribed();
+    channel.subscribe();
 
     return controller.stream;
   }
@@ -130,19 +154,45 @@ class RealtimeClient {
   ) {
     if (controller.isClosed) return;
 
-    final raw = event.data;
-    Map<String, dynamic> data;
-    if (raw is Map<String, dynamic>) {
-      data = raw;
-    } else if (raw is String) {
-      data = jsonDecode(raw) as Map<String, dynamic>;
-    } else {
+    final data = _extractPayload(event.data);
+    if (data == null) {
+      if (kDebugMode) {
+        debugPrint('Realtime: ignored $eventName payload: ${event.data}');
+      }
       return;
     }
 
     controller.add(
       PodRealtimeEvent(podId: podId, eventName: eventName, data: data),
     );
+  }
+
+  Map<String, dynamic>? _extractPayload(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      if (raw.containsKey('sender') ||
+          raw.containsKey('body') ||
+          raw.containsKey('user')) {
+        return raw;
+      }
+
+      final nested = raw['data'];
+      if (nested is String) {
+        return _extractPayload(jsonDecode(nested));
+      }
+      if (nested is Map<String, dynamic>) {
+        return _extractPayload(nested) ?? nested;
+      }
+    }
+
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        return _extractPayload(jsonDecode(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return null;
   }
 
   Future<void> unsubscribeFromPod(String podId) async {
@@ -194,8 +244,10 @@ class _BearerTokenAuthorizationDelegate
     String channelName,
   ) async {
     final token = await _tokenStorage.readToken();
+    final uri = ReverbConfig.broadcastingAuthUri;
+
     final response = await http.post(
-      ReverbConfig.broadcastingAuthUri,
+      uri,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -209,6 +261,12 @@ class _BearerTokenAuthorizationDelegate
     );
 
     if (response.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint(
+          'Realtime: broadcast auth failed (${response.statusCode}) '
+          'for $channelName at $uri: ${response.body}',
+        );
+      }
       throw Exception(
         'Broadcast auth failed (${response.statusCode}): ${response.body}',
       );

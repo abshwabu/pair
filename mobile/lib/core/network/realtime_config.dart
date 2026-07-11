@@ -14,6 +14,13 @@ abstract final class ReverbConfig {
 
   static String get host {
     if (_configuredReverbHost.isNotEmpty) return _configuredReverbHost;
+
+    // Match the API host when only API_BASE_URL is configured (e.g. LAN testing).
+    final apiHost = Uri.tryParse(apiBaseUrl)?.host;
+    if (apiHost != null && apiHost.isNotEmpty) {
+      return apiHost;
+    }
+
     if (kIsWeb) return 'localhost';
     if (Platform.isAndroid) return '10.0.2.2';
     return 'localhost';

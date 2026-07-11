@@ -53,7 +53,7 @@ class MessageModel {
     required Map<String, dynamic> json,
   }) {
     return MessageModel(
-      id: _syntheticId(json),
+      id: json['id'] as String? ?? _syntheticId(json),
       podId: podId,
       sender: MessageSender.fromJson(json['sender'] as Map<String, dynamic>),
       body: json['body'] as String?,

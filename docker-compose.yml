@@ -21,7 +21,9 @@ services:
       dockerfile: Dockerfile
     container_name: pair_backend_reverb
     restart: unless-stopped
-    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    command: >
+      bash -c "if ! php -m | grep -q pcntl; then docker-php-ext-install pcntl; fi
+      && php artisan reverb:start --host=0.0.0.0 --port=8080"
     ports:
       - "8080:8080"
     volumes:
@@ -37,7 +39,9 @@ services:
       dockerfile: Dockerfile
     container_name: pair_backend_horizon
     restart: unless-stopped
-    command: php artisan horizon
+    command: >
+      bash -c "if ! php -m | grep -q pcntl; then docker-php-ext-install pcntl; fi
+      && php artisan horizon"
     volumes:
       - ./backend:/var/www
     env_file:
