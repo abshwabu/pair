@@ -6,6 +6,7 @@ import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/finding_match_provider.dart';
+import 'package:pair/features/todos/models/todo_model.dart';
 import 'package:pair/features/todos/providers/todos_provider.dart';
 import 'package:pair/features/todos/widgets/assignee_chip.dart';
 import 'package:pair/features/todos/widgets/todo_form_sheet.dart';
@@ -201,8 +202,17 @@ class TodoDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               OutlinedButton(
-                onPressed: () => _confirmDeletion(context, notifier, todo.id),
-                child: const Text('Request removal'),
+                onPressed: () => _confirmDeletion(
+                  context,
+                  notifier,
+                  todo,
+                  currentUserId,
+                ),
+                child: Text(
+                  todo.requiresPartnerApproval(currentUserId)
+                      ? 'Request removal'
+                      : 'Delete todo',
+                ),
               ),
             ] else if (waitingOnPartner) ...[
               OutlinedButton(
@@ -233,14 +243,18 @@ class TodoDetailScreen extends ConsumerWidget {
   Future<void> _confirmDeletion(
     BuildContext context,
     TodosNotifier notifier,
-    String todoId,
+    TodoModel todo,
+    String currentUserId,
   ) async {
+    final needsApproval = todo.requiresPartnerApproval(currentUserId);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request removal?'),
-        content: const Text(
-          'Your partner must approve before this todo is removed from the pod list.',
+        title: Text(needsApproval ? 'Request removal?' : 'Delete todo?'),
+        content: Text(
+          needsApproval
+              ? 'Your partner must approve before this todo is removed from the pod list.'
+              : 'This todo will be removed from your personal list.',
         ),
         actions: [
           TextButton(
@@ -249,7 +263,7 @@ class TodoDetailScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Request removal'),
+            child: Text(needsApproval ? 'Request removal' : 'Delete'),
           ),
         ],
       ),
@@ -257,7 +271,7 @@ class TodoDetailScreen extends ConsumerWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final error = await notifier.requestDeletion(todoId);
+    final error = await notifier.requestDeletion(todo.id);
     if (!context.mounted) return;
 
     if (error != null) {

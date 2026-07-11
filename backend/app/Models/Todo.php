@@ -65,4 +65,13 @@ class Todo extends Model
     {
         return $this->hasMany(TodoCompletion::class);
     }
+
+    /**
+     * Personal "Me" todos are assigned to a single member's list.
+     * Shared and partner-assigned todos require both members to agree on changes.
+     */
+    public function isPersonalFor(?string $userId): bool
+    {
+        return $userId !== null && $this->assigned_to === $userId;
+    }
 }

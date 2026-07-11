@@ -15,7 +15,7 @@ class TodoTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_member_can_propose_todo_pending_until_partner_approves(): void
+    public function test_member_can_propose_shared_todo_pending_until_partner_approves(): void
     {
         [$pod, $user1, $user2] = $this->createActivePodPair();
 
@@ -52,6 +52,62 @@ class TodoTest extends TestCase
             'id' => $todoId,
             'status' => Todo::STATUS_ACTIVE,
         ]);
+    }
+
+    public function test_member_can_create_personal_todo_without_approval(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $response = $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos", [
+                'title' => 'Personal task',
+                'assigned_to' => $user1->id,
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', Todo::STATUS_ACTIVE)
+            ->assertJsonPath('data.assigned_to', $user1->id);
+
+        $this->assertDatabaseHas('todos', [
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'assigned_to' => $user1->id,
+            'status' => Todo::STATUS_ACTIVE,
+            'title' => 'Personal task',
+        ]);
+    }
+
+    public function test_member_can_delete_personal_todo_immediately(): void
+    {
+        [$pod, $user1] = $this->createActivePodPair();
+
+        $todo = Todo::create([
+            'pod_id' => $pod->id,
+            'created_by' => $user1->id,
+            'assigned_to' => $user1->id,
+            'title' => 'Personal task',
+            'status' => Todo::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($user1, 'sanctum')
+            ->deleteJson("/api/v1/pods/{$pod->id}/todos/{$todo->id}")
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('todos', ['id' => $todo->id]);
+    }
+
+    public function test_partner_assigned_todo_requires_approval_on_create(): void
+    {
+        [$pod, $user1, $user2] = $this->createActivePodPair();
+
+        $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/v1/pods/{$pod->id}/todos", [
+                'title' => 'For partner',
+                'assigned_to' => $user2->id,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.status', Todo::STATUS_PENDING)
+            ->assertJsonPath('data.assigned_to', $user2->id);
     }
 
     public function test_partner_can_reject_pending_todo_proposal(): void

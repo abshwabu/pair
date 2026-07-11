@@ -58,23 +58,31 @@ class TodoController extends Controller
     {
         Gate::authorize('view', $pod);
 
+        $userId = $request->user()->id;
+        $validated = $request->validated();
+        $assignedTo = $validated['assigned_to'] ?? null;
+        $status = $assignedTo === $userId ? Todo::STATUS_ACTIVE : Todo::STATUS_PENDING;
+
         $todo = $pod->todos()->create([
-            ...$request->validated(),
-            'created_by' => $request->user()->id,
-            'status' => Todo::STATUS_PENDING,
+            ...$validated,
+            'created_by' => $userId,
+            'status' => $status,
         ]);
 
         $todo->load('completions');
-        $this->notifyPartner(
-            $pod,
-            $request->user()->id,
-            'todo_proposed',
-            [
-                'pod_id' => $pod->id,
-                'todo_id' => $todo->id,
-                'title' => $todo->title,
-            ],
-        );
+
+        if ($status === Todo::STATUS_PENDING) {
+            $this->notifyPartner(
+                $pod,
+                $userId,
+                'todo_proposed',
+                [
+                    'pod_id' => $pod->id,
+                    'todo_id' => $todo->id,
+                    'title' => $todo->title,
+                ],
+            );
+        }
 
         return $this->success($this->formatTodo($todo, $request->user()), null, 201);
     }
@@ -158,6 +166,12 @@ class TodoController extends Controller
             $todo->load('completions');
 
             return $this->success($this->formatTodo($todo, $request->user()));
+        }
+
+        if ($todo->isPersonalFor($userId)) {
+            $todo->delete();
+
+            return $this->success(['message' => 'Todo deleted.']);
         }
 
         $todo->update([

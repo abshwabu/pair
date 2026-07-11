@@ -54,6 +54,8 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
 
   bool get _isEditing => widget.existing != null;
 
+  bool get _needsPartnerApproval => _assignee != TodoAssigneeOption.me;
+
   @override
   void initState() {
     super.initState();
@@ -177,13 +179,17 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            _isEditing ? 'Edit todo' : 'Propose todo',
+            _isEditing
+                ? 'Edit todo'
+                : _needsPartnerApproval
+                    ? 'Propose todo'
+                    : 'Add todo',
             style: theme.textTheme.headlineSmall,
           ),
-          if (!_isEditing) ...[
+          if (!_isEditing && _needsPartnerApproval) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Your partner must approve before it appears on the pod list.',
+              'Your partner must approve shared and partner todos before they appear on the pod list.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -253,7 +259,11 @@ class _TodoFormSheetState extends ConsumerState<TodoFormSheet> {
           ],
           const SizedBox(height: AppSpacing.lg),
           PrimaryButton(
-            label: _isEditing ? 'Save changes' : 'Send to partner',
+            label: _isEditing
+                ? 'Save changes'
+                : _needsPartnerApproval
+                    ? 'Send to partner'
+                    : 'Add todo',
             isLoading: _isSubmitting,
             onPressed: _submit,
           ),

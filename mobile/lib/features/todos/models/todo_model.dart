@@ -61,6 +61,12 @@ class TodoModel {
     return completions.length >= 2;
   }
 
+  /// Assigned to this member's personal list — no partner approval needed.
+  bool isPersonalFor(String userId) => assignedTo == userId;
+
+  /// Shared and partner-assigned todos require both members to agree.
+  bool requiresPartnerApproval(String userId) => !isPersonalFor(userId);
+
   TodoModel copyWith({
     String? id,
     String? podId,
