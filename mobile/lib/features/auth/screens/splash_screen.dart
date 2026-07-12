@@ -41,36 +41,40 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Pair',
-                style: theme.textTheme.displayMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Accountability, together.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Pair',
+                  style: theme.textTheme.displayMedium,
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              if (state.isLoading)
-                const CircularProgressIndicator()
-              else if (state.error != null) ...[
-                ErrorBanner(message: state.error!),
-                const SizedBox(height: AppSpacing.md),
-                ElevatedButton(
-                  onPressed: _bootstrap,
-                  child: const Text('Retry'),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Accountability, together.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
+                if (state.isLoading) ...[
+                  const SizedBox(height: AppSpacing.xxl),
+                  const CircularProgressIndicator(),
+                ] else if (state.error != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  ErrorBanner(message: state.error!),
+                  const SizedBox(height: AppSpacing.md),
+                  ElevatedButton(
+                    onPressed: _bootstrap,
+                    child: const Text('Retry'),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
