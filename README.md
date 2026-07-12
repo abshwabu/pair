@@ -47,10 +47,34 @@ Services:
 ```bash
 cd mobile
 flutter pub get
+```
+
+**Emulator / simulator** (backend on the same machine):
+
+```bash
 flutter run
 ```
 
-The app will boot to a blank home screen. Make sure you have a simulator/emulator running or a device connected.
+**Physical device** (phone must reach your dev machine over Wi‑Fi):
+
+```bash
+cp dart_defines.local.json.example dart_defines.local.json
+# Edit dart_defines.local.json — set API_BASE_URL to http://<your-lan-ip>:8000/api/v1
+
+# From repo root:
+./scripts/run_mobile_dev.sh
+```
+
+Or pass defines inline (stop any running app first — hot reload does **not** apply new values):
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://192.168.1.10:8000/api/v1 \
+  --dart-define=REVERB_PORT=8080 \
+  --dart-define=REVERB_SCHEME=http
+```
+
+On startup, debug builds log the resolved `API_BASE_URL` and Reverb endpoint. If you see `http://10.0.2.2:8000/api/v1` on a physical phone, the defines were not compiled in — quit the app and run again with the flags above.
 
 ### 3. Web (Phase 2)
 

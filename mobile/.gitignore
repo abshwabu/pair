@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Per-machine LAN API settings for physical device testing
+dart_defines.local.json
