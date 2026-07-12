@@ -142,6 +142,7 @@ class MatchingController extends Controller
     public function storePartnerRequest(
         CreatePartnerMatchRequestRequest $request,
         BlockService $blockService,
+        PodMatchingService $matcher,
     ): JsonResponse {
         $user = $request->user();
         $targetGoalId = $request->validated('target_goal_id');
@@ -215,6 +216,8 @@ class MatchingController extends Controller
                 422
             );
         }
+
+        $matcher->cancelOpenRequestsForUser($user->id);
 
         $partnerRequest = PartnerMatchRequest::create([
             'requester_user_id' => $user->id,

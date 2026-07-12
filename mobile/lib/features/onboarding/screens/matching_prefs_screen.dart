@@ -21,10 +21,11 @@ class MatchingPrefsScreen extends ConsumerWidget {
     final notifier = ref.read(matchingPrefsFormProvider.notifier);
     final session = ref.watch(onboardingSessionProvider);
     final theme = Theme.of(context);
+    final isDirectedMatch = session.targetGoalId != null;
 
     GoalModel? targetGoal;
     final category = session.selectedCategory;
-    if (session.targetGoalId != null && category != null) {
+    if (isDirectedMatch && category != null) {
       final listState = ref.watch(goalListProvider(category));
       targetGoal = listState.communityGoals
           .where((goal) => goal.id == session.targetGoalId)
@@ -60,7 +61,7 @@ class MatchingPrefsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (targetGoal != null) ...[
+              if (isDirectedMatch) ...[
                 Card(
                   color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
                   child: Padding(
@@ -73,14 +74,20 @@ class MatchingPrefsScreen extends ConsumerWidget {
                           style: theme.textTheme.labelMedium,
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          targetGoal.owner?.name ?? 'Partner',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        Text(
-                          targetGoal.title,
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        if (targetGoal != null) ...[
+                          Text(
+                            targetGoal.owner?.name ?? 'Partner',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          Text(
+                            targetGoal.title,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ] else
+                          Text(
+                            'A partner you selected',
+                            style: theme.textTheme.titleMedium,
+                          ),
                       ],
                     ),
                   ),
@@ -137,14 +144,14 @@ class MatchingPrefsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
-                label: targetGoal != null
+                label: isDirectedMatch
                     ? 'Send match request'
                     : 'Find my partner',
                 isLoading: form.isLoading,
                 onPressed: () async {
                   final success = await notifier.submit();
                   if (!context.mounted || !success) return;
-                  if (targetGoal != null) {
+                  if (isDirectedMatch) {
                     context.push(AppRoutes.matchRequestPending);
                   } else {
                     context.push(AppRoutes.findingMatch);

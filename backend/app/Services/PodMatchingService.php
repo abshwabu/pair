@@ -26,6 +26,10 @@ class PodMatchingService
             return false;
         }
 
+        if ($this->isReservedForPartnerRequest($request)) {
+            return false;
+        }
+
         $candidates = PodRequest::query()
             ->with(['goal', 'user'])
             ->where('status', 'open')
@@ -37,6 +41,10 @@ class PodMatchingService
         $bestScore = 0;
 
         foreach ($candidates as $candidate) {
+            if ($this->isReservedForPartnerRequest($candidate)) {
+                continue;
+            }
+
             if ($this->blockService->usersAreBlocked($request->user_id, $candidate->user_id)) {
                 continue;
             }
@@ -56,6 +64,35 @@ class PodMatchingService
         }
 
         return false;
+    }
+
+    /**
+     * Users waiting on a directed partner request must not be auto-matched.
+     */
+    public function isReservedForPartnerRequest(PodRequest $request): bool
+    {
+        $hasPendingIncoming = PartnerMatchRequest::query()
+            ->where('recipient_user_id', $request->user_id)
+            ->where('recipient_goal_id', $request->goal_id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($hasPendingIncoming) {
+            return true;
+        }
+
+        return PartnerMatchRequest::query()
+            ->where('requester_user_id', $request->user_id)
+            ->where('status', 'pending')
+            ->exists();
+    }
+
+    public function cancelOpenRequestsForUser(string $userId): void
+    {
+        PodRequest::query()
+            ->where('user_id', $userId)
+            ->where('status', 'open')
+            ->update(['status' => 'cancelled']);
     }
 
     public function canPair(PodRequest $request, PodRequest $candidate): bool

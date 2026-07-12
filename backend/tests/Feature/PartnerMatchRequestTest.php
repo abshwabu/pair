@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\FindMatchJob;
 use App\Models\Goal;
 use App\Models\PartnerMatchRequest;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\PodRequest;
 use App\Models\User;
+use App\Services\PodMatchingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -134,6 +136,153 @@ class PartnerMatchRequestTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('data.status', 'cancelled');
+    }
+
+    public function test_sending_partner_request_cancels_open_general_matching_request(): void
+    {
+        $requester = $this->createUser('requester@example.com');
+        $recipient = $this->createUser('recipient@example.com');
+
+        $requesterGoal = $this->createGoal($requester);
+        $recipientGoal = $this->createGoal($recipient);
+
+        $openRequest = PodRequest::create([
+            'user_id' => $requester->id,
+            'goal_id' => $requesterGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        PodRequest::create([
+            'user_id' => $recipient->id,
+            'goal_id' => $recipientGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $this->actingAs($requester, 'sanctum')
+            ->postJson('/api/v1/matching/partner-requests', [
+                'goal_id' => $requesterGoal->id,
+                'target_goal_id' => $recipientGoal->id,
+                'timezone_tolerance_hours' => 3,
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('pod_requests', [
+            'id' => $openRequest->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_recipient_with_pending_partner_request_is_not_auto_matched(): void
+    {
+        $requester = $this->createUser('requester@example.com');
+        $recipient = $this->createUser('recipient@example.com');
+        $otherUser = $this->createUser('other@example.com');
+
+        $requesterGoal = $this->createGoal($requester);
+        $recipientGoal = $this->createGoal($recipient);
+        $otherGoal = $this->createGoal($otherUser);
+
+        $recipientRequest = PodRequest::create([
+            'user_id' => $recipient->id,
+            'goal_id' => $recipientGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $otherRequest = PodRequest::create([
+            'user_id' => $otherUser->id,
+            'goal_id' => $otherGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        PartnerMatchRequest::create([
+            'requester_user_id' => $requester->id,
+            'requester_goal_id' => $requesterGoal->id,
+            'recipient_user_id' => $recipient->id,
+            'recipient_goal_id' => $recipientGoal->id,
+            'status' => 'pending',
+            'timezone_tolerance_hours' => 3,
+        ]);
+
+        $this->runFindMatchJob($otherRequest->id);
+
+        $this->assertDatabaseHas('pod_requests', [
+            'id' => $recipientRequest->id,
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseHas('pod_requests', [
+            'id' => $otherRequest->id,
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseCount('pods', 0);
+    }
+
+    public function test_requester_with_pending_partner_request_is_not_auto_matched(): void
+    {
+        $requester = $this->createUser('requester@example.com');
+        $recipient = $this->createUser('recipient@example.com');
+        $otherUser = $this->createUser('other@example.com');
+
+        $requesterGoal = $this->createGoal($requester);
+        $recipientGoal = $this->createGoal($recipient);
+        $otherGoal = $this->createGoal($otherUser);
+
+        PodRequest::create([
+            'user_id' => $recipient->id,
+            'goal_id' => $recipientGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $requesterRequest = PodRequest::create([
+            'user_id' => $requester->id,
+            'goal_id' => $requesterGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        $otherRequest = PodRequest::create([
+            'user_id' => $otherUser->id,
+            'goal_id' => $otherGoal->id,
+            'status' => 'open',
+            'timezone_tolerance_hours' => 3,
+            'language' => 'en',
+        ]);
+
+        PartnerMatchRequest::create([
+            'requester_user_id' => $requester->id,
+            'requester_goal_id' => $requesterGoal->id,
+            'recipient_user_id' => $recipient->id,
+            'recipient_goal_id' => $recipientGoal->id,
+            'status' => 'pending',
+            'timezone_tolerance_hours' => 3,
+        ]);
+
+        $this->runFindMatchJob($requesterRequest->id);
+
+        $this->assertDatabaseHas('pod_requests', [
+            'id' => $requesterRequest->id,
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseHas('pod_requests', [
+            'id' => $otherRequest->id,
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseCount('pods', 0);
+    }
+
+    private function runFindMatchJob(string $podRequestId): void
+    {
+        (new FindMatchJob($podRequestId))->handle(app(PodMatchingService::class));
     }
 
     private function createUser(string $email = 'user@example.com'): User
