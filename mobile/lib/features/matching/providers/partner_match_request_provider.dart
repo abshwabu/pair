@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pair/core/network/api_response.dart';
 import 'package:pair/features/matching/models/partner_match_request_model.dart';
@@ -10,24 +8,22 @@ import 'package:pair/features/onboarding/services/profile_service.dart';
 
 class PartnerMatchPendingState {
   const PartnerMatchPendingState({
-    this.isSending = true,
-    this.isPolling = false,
+    this.isSending = false,
+    this.isSent = false,
     this.isCancelling = false,
     this.request,
     this.error,
   });
 
   final bool isSending;
-  final bool isPolling;
+  final bool isSent;
   final bool isCancelling;
   final PartnerMatchRequestModel? request;
   final String? error;
 
-  bool get isWaiting => isSending || isPolling;
-
   PartnerMatchPendingState copyWith({
     bool? isSending,
-    bool? isPolling,
+    bool? isSent,
     bool? isCancelling,
     PartnerMatchRequestModel? request,
     String? error,
@@ -35,7 +31,7 @@ class PartnerMatchPendingState {
   }) {
     return PartnerMatchPendingState(
       isSending: isSending ?? this.isSending,
-      isPolling: isPolling ?? this.isPolling,
+      isSent: isSent ?? this.isSent,
       isCancelling: isCancelling ?? this.isCancelling,
       request: request ?? this.request,
       error: clearError ? null : error ?? this.error,
@@ -47,23 +43,31 @@ class PartnerMatchPendingNotifier extends StateNotifier<PartnerMatchPendingState
   PartnerMatchPendingNotifier(this._ref) : super(const PartnerMatchPendingState());
 
   final Ref _ref;
-  Timer? _pollTimer;
-  bool _started = false;
 
-  Future<void> start() async {
-    if (_started) return;
-    _started = true;
-
+  Future<bool> send() async {
     final session = _ref.read(onboardingSessionProvider);
     final goalId = session.createdGoalId;
     final targetGoalId = session.targetGoalId;
 
     if (goalId == null || targetGoalId == null) {
       state = state.copyWith(
-        isSending: false,
         error: 'Missing goal information for this match request.',
       );
-      return;
+      return false;
+    }
+
+    if (state.isSent &&
+        state.request?.recipientGoal?.id == targetGoalId &&
+        state.error == null) {
+      return true;
+    }
+
+    if (state.isSending) {
+      return false;
+    }
+
+    if (state.isSent && state.request?.recipientGoal?.id != targetGoalId) {
+      state = const PartnerMatchPendingState();
     }
 
     final prefs = await _ref.read(matchingPrefsStorageProvider).load();
@@ -81,64 +85,28 @@ class PartnerMatchPendingNotifier extends StateNotifier<PartnerMatchPendingState
             timezoneToleranceHours: timezoneToleranceHours,
           );
 
-      if (request.isAccepted && request.podId != null) {
-        state = state.copyWith(isSending: false, request: request);
-        return;
-      }
-
       state = state.copyWith(
         isSending: false,
-        isPolling: true,
+        isSent: true,
         request: request,
       );
-      _beginPolling(request.id);
+      _ref.invalidate(outgoingPartnerMatchRequestsProvider);
+      return true;
     } on ApiException catch (e) {
       state = state.copyWith(isSending: false, error: e.message);
+      return false;
     } catch (_) {
       state = state.copyWith(
         isSending: false,
         error: 'Unable to send match request. Please try again.',
       );
-    }
-  }
-
-  void _beginPolling(String requestId) {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _poll(requestId);
-    });
-    _poll(requestId);
-  }
-
-  Future<void> _poll(String requestId) async {
-    if (!state.isPolling) return;
-
-    try {
-      final request =
-          await _ref.read(matchingServiceProvider).getPartnerRequest(requestId);
-
-      if (request.isAccepted || request.isDeclined || request.isCancelled) {
-        _pollTimer?.cancel();
-        state = state.copyWith(isPolling: false, request: request);
-      }
-    } on ApiException catch (e) {
-      _pollTimer?.cancel();
-      state = state.copyWith(isPolling: false, error: e.message);
-    } catch (_) {
-      _pollTimer?.cancel();
-      state = state.copyWith(
-        isPolling: false,
-        error: 'Lost connection while waiting for a response.',
-      );
+      return false;
     }
   }
 
   Future<bool> cancel() async {
-    _pollTimer?.cancel();
-
     final requestId = state.request?.id;
     if (requestId == null) {
-      state = state.copyWith(isSending: false, isPolling: false, isCancelling: false);
       return true;
     }
 
@@ -146,7 +114,8 @@ class PartnerMatchPendingNotifier extends StateNotifier<PartnerMatchPendingState
 
     try {
       await _ref.read(matchingServiceProvider).cancelPartnerRequest(requestId);
-      state = state.copyWith(isCancelling: false, isPolling: false);
+      state = state.copyWith(isCancelling: false, isSent: false, request: null);
+      _ref.invalidate(outgoingPartnerMatchRequestsProvider);
       return true;
     } on ApiException catch (e) {
       state = state.copyWith(isCancelling: false, error: e.message);
@@ -160,10 +129,8 @@ class PartnerMatchPendingNotifier extends StateNotifier<PartnerMatchPendingState
     }
   }
 
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    super.dispose();
+  void reset() {
+    state = const PartnerMatchPendingState();
   }
 }
 
@@ -176,6 +143,14 @@ final incomingPartnerMatchRequestsProvider =
     FutureProvider.autoDispose<List<PartnerMatchRequestModel>>((ref) {
   return ref.watch(matchingServiceProvider).listPartnerRequests(
         direction: 'incoming',
+        pendingOnly: true,
+      );
+});
+
+final outgoingPartnerMatchRequestsProvider =
+    FutureProvider.autoDispose<List<PartnerMatchRequestModel>>((ref) {
+  return ref.watch(matchingServiceProvider).listPartnerRequests(
+        direction: 'outgoing',
         pendingOnly: true,
       );
 });

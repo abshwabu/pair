@@ -187,21 +187,6 @@ class MatchingController extends Controller
             );
         }
 
-        $recipientHasOpenRequest = PodRequest::query()
-            ->where('user_id', $targetGoal->user_id)
-            ->where('goal_id', $targetGoal->id)
-            ->where('status', 'open')
-            ->exists();
-
-        if (! $recipientHasOpenRequest) {
-            return $this->error(
-                'This partner is not looking for a match right now.',
-                'target_unavailable',
-                null,
-                422
-            );
-        }
-
         $hasPending = PartnerMatchRequest::query()
             ->where('requester_user_id', $user->id)
             ->where('recipient_goal_id', $targetGoal->id)

@@ -29,6 +29,7 @@ class GoalModel {
     required this.targetDescription,
     required this.pace,
     this.isMine = true,
+    this.isSearching = false,
     this.owner,
   });
 
@@ -38,16 +39,18 @@ class GoalModel {
   final String targetDescription;
   final String pace;
   final bool isMine;
+  final bool isSearching;
   final GoalOwner? owner;
 
   factory GoalModel.fromJson(Map<String, dynamic> json) {
     return GoalModel(
       id: json['id'] as String,
       category: json['category'] as String,
-      title: json['title'] as String,
-      targetDescription: json['target_description'] as String,
-      pace: json['pace'] as String,
+      title: json['title'] as String? ?? '',
+      targetDescription: json['target_description'] as String? ?? '',
+      pace: json['pace'] as String? ?? 'steady',
       isMine: json['is_mine'] as bool? ?? true,
+      isSearching: json['is_searching'] as bool? ?? false,
       owner: json['owner'] != null
           ? GoalOwner.fromJson(json['owner'] as Map<String, dynamic>)
           : null,

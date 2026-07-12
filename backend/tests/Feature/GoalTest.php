@@ -147,7 +147,49 @@ class GoalTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $communityGoal->id)
             ->assertJsonPath('data.0.is_mine', false)
+            ->assertJsonPath('data.0.is_searching', true)
             ->assertJsonPath('data.0.owner.name', 'User 2');
+    }
+
+    public function test_browse_includes_goals_without_open_matching_request(): void
+    {
+        $user1 = User::create([
+            'name' => 'User 1',
+            'email' => 'user1@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        $user2 = User::create([
+            'name' => 'User 2',
+            'email' => 'user2@example.com',
+            'password' => bcrypt('password123'),
+            'timezone' => 'UTC',
+        ]);
+
+        Goal::create([
+            'user_id' => $user1->id,
+            'category' => 'fitness',
+            'title' => 'User 1 Goal',
+            'target_description' => 'Desc 1',
+            'pace' => 'steady',
+        ]);
+
+        $communityGoal = Goal::create([
+            'user_id' => $user2->id,
+            'category' => 'fitness',
+            'title' => 'User 2 Goal',
+            'target_description' => 'Desc 2',
+            'pace' => 'relaxed',
+        ]);
+
+        $response = $this->actingAs($user1, 'sanctum')
+            ->getJson('/api/v1/goals?scope=browse&category=fitness');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $communityGoal->id)
+            ->assertJsonPath('data.0.is_searching', false);
     }
 
     /**

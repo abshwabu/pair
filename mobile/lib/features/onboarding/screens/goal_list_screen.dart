@@ -5,6 +5,7 @@ import 'package:pair/core/app_routes.dart';
 import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/core/widgets/pair_app_bar.dart';
+import 'package:pair/features/matching/providers/partner_match_request_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_category_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_detail_form_provider.dart';
 import 'package:pair/features/onboarding/providers/goal_list_provider.dart';
@@ -12,8 +13,27 @@ import 'package:pair/features/onboarding/providers/onboarding_session_provider.d
 import 'package:pair/features/onboarding/services/goal_service.dart';
 import 'package:pair/features/pods/widgets/partner_avatar.dart';
 
-class GoalListScreen extends ConsumerWidget {
+class GoalListScreen extends ConsumerStatefulWidget {
   const GoalListScreen({super.key});
+
+  @override
+  ConsumerState<GoalListScreen> createState() => _GoalListScreenState();
+}
+
+class _GoalListScreenState extends ConsumerState<GoalListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshGoals());
+  }
+
+  void _refreshGoals() {
+    final category = ref.read(onboardingSessionProvider).selectedCategory;
+    if (category != null) {
+      ref.invalidate(goalListProvider(category));
+      ref.invalidate(outgoingPartnerMatchRequestsProvider);
+    }
+  }
 
   Future<void> _onOwnGoalTap(
     BuildContext context,
@@ -109,7 +129,7 @@ class GoalListScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final category = ref.watch(onboardingSessionProvider).selectedCategory;
     final theme = Theme.of(context);
 
@@ -128,6 +148,12 @@ class GoalListScreen extends ConsumerWidget {
         .firstOrNull;
 
     final listState = ref.watch(goalListProvider(category));
+    final outgoingAsync = ref.watch(outgoingPartnerMatchRequestsProvider);
+    final sentGoalIds = outgoingAsync.asData?.value
+            .map((request) => request.recipientGoal?.id)
+            .whereType<String>()
+            .toSet() ??
+        <String>{};
 
     return Scaffold(
       appBar: PairAppBar(
@@ -194,13 +220,17 @@ class GoalListScreen extends ConsumerWidget {
                         ),
                       ),
                     const SizedBox(height: AppSpacing.lg),
+                    if (listState.communityError != null) ...[
+                      ErrorBanner(message: listState.communityError!),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     Text(
                       'From others',
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'People actively looking for a partner in this category.',
+                      'Goals from people in this category. Tap a goal to send a match request.',
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -210,8 +240,7 @@ class GoalListScreen extends ConsumerWidget {
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.lg),
                           child: Text(
-                            'No one is searching in this category yet. '
-                            'Create a goal and start matching!',
+                            'No other goals in this category yet.',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -221,19 +250,26 @@ class GoalListScreen extends ConsumerWidget {
                       )
                     else
                       ...listState.communityGoals.map(
-                        (goal) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: _GoalCard(
-                            goal: goal,
-                            actionLabel: 'Tap to send a match request',
-                            onTap: () => _onCommunityGoalTap(
-                              context,
-                              ref,
-                              goal,
-                              listState.myGoals,
+                        (goal) {
+                          final requestSent = sentGoalIds.contains(goal.id);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: _GoalCard(
+                              goal: goal,
+                              actionLabel: requestSent
+                                  ? 'Sent a match request'
+                                  : 'Tap to send a match request',
+                              onTap: requestSent
+                                  ? null
+                                  : () => _onCommunityGoalTap(
+                                        context,
+                                        ref,
+                                        goal,
+                                        listState.myGoals,
+                                      ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     const SizedBox(height: AppSpacing.xxl),
                   ],
@@ -253,7 +289,7 @@ class _GoalCard extends StatelessWidget {
 
   final GoalModel goal;
   final String actionLabel;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -264,11 +300,13 @@ class _GoalCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Opacity(
+          opacity: onTap == null ? 0.65 : 1,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               if (owner != null && !goal.isMine) ...[
                 Row(
                   children: [
@@ -320,11 +358,14 @@ class _GoalCard extends StatelessWidget {
               Text(
                 actionLabel,
                 style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.primary,
+                  color: onTap == null
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.primary,
                 ),
               ),
             ],
           ),
+        ),
         ),
       ),
     );

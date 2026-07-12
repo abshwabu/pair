@@ -137,12 +137,18 @@ class GoalController extends Controller
                 $query->whereNull('left_at')
                     ->whereHas('pod', fn ($podQuery) => $podQuery->where('status', 'active'));
             })
-            ->whereHas('podRequests', fn ($query) => $query->where('status', 'open'))
             ->latest()
             ->get();
 
         return $goals
-            ->map(fn (Goal $goal) => $this->formatGoal($goal, false))
+            ->map(function (Goal $goal) {
+                $formatted = $this->formatGoal($goal, false);
+                $formatted['is_searching'] = $goal->podRequests()
+                    ->where('status', 'open')
+                    ->exists();
+
+                return $formatted;
+            })
             ->values()
             ->all();
     }

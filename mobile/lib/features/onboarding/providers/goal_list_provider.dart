@@ -8,6 +8,7 @@ class GoalListState {
     this.communityGoals = const [],
     this.isLoading = false,
     this.error,
+    this.communityError,
     this.hasLoaded = false,
   });
 
@@ -15,6 +16,7 @@ class GoalListState {
   final List<GoalModel> communityGoals;
   final bool isLoading;
   final String? error;
+  final String? communityError;
   final bool hasLoaded;
 
   GoalListState copyWith({
@@ -22,14 +24,18 @@ class GoalListState {
     List<GoalModel>? communityGoals,
     bool? isLoading,
     String? error,
+    String? communityError,
     bool? hasLoaded,
     bool clearError = false,
+    bool clearCommunityError = false,
   }) {
     return GoalListState(
       myGoals: myGoals ?? this.myGoals,
       communityGoals: communityGoals ?? this.communityGoals,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : error ?? this.error,
+      communityError:
+          clearCommunityError ? null : communityError ?? this.communityError,
       hasLoaded: hasLoaded ?? this.hasLoaded,
     );
   }
@@ -44,29 +50,43 @@ class GoalListNotifier extends StateNotifier<GoalListState> {
   final String _category;
 
   Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearCommunityError: true,
+    );
+
+    final service = _ref.read(goalServiceProvider);
+
+    List<GoalModel> myGoals = state.myGoals;
+    List<GoalModel> communityGoals = state.communityGoals;
+    String? myError;
+    String? communityError;
 
     try {
-      final service = _ref.read(goalServiceProvider);
-      final results = await Future.wait([
-        service.listMyGoals(category: _category),
-        service.browseGoals(category: _category),
-      ]);
-
-      state = state.copyWith(
-        myGoals: results[0],
-        communityGoals: results[1],
-        isLoading: false,
-        hasLoaded: true,
-      );
+      myGoals = await service.listMyGoals(category: _category);
     } on ApiException catch (e) {
-      state = state.copyWith(isLoading: false, error: e.message);
+      myError = e.message;
     } catch (_) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Unable to load goals.',
-      );
+      myError = 'Unable to load your goals.';
     }
+
+    try {
+      communityGoals = await service.browseGoals(category: _category);
+    } on ApiException catch (e) {
+      communityError = e.message;
+    } catch (_) {
+      communityError = 'Unable to load community goals.';
+    }
+
+    state = state.copyWith(
+      myGoals: myGoals,
+      communityGoals: communityGoals,
+      isLoading: false,
+      hasLoaded: true,
+      error: myError,
+      communityError: communityError,
+    );
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:pair/core/theme/app_theme.dart';
 import 'package:pair/core/widgets/error_banner.dart';
 import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
+import 'package:pair/features/matching/providers/partner_match_request_provider.dart';
 import 'package:pair/features/onboarding/data/onboarding_options.dart';
 import 'package:pair/features/onboarding/providers/matching_prefs_form_provider.dart';
 import 'package:pair/features/onboarding/providers/onboarding_session_provider.dart';
@@ -19,6 +20,7 @@ class MatchingPrefsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final form = ref.watch(matchingPrefsFormProvider);
     final notifier = ref.read(matchingPrefsFormProvider.notifier);
+    final partnerState = ref.watch(partnerMatchPendingProvider);
     final session = ref.watch(onboardingSessionProvider);
     final theme = Theme.of(context);
     final isDirectedMatch = session.targetGoalId != null;
@@ -31,6 +33,14 @@ class MatchingPrefsScreen extends ConsumerWidget {
           .where((goal) => goal.id == session.targetGoalId)
           .firstOrNull;
     }
+
+    final outgoingAsync = isDirectedMatch
+        ? ref.watch(outgoingPartnerMatchRequestsProvider)
+        : null;
+    final alreadySent = outgoingAsync?.asData?.value.any(
+          (request) => request.recipientGoal?.id == session.targetGoalId,
+        ) ??
+        false;
 
     if (form.isInitializing) {
       return const Scaffold(
@@ -101,6 +111,10 @@ class MatchingPrefsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
+              if (partnerState.error != null) ...[
+                ErrorBanner(message: partnerState.error!),
+                const SizedBox(height: AppSpacing.md),
+              ],
               Text(
                 'Timezone tolerance',
                 style: theme.textTheme.titleMedium,
@@ -144,19 +158,28 @@ class MatchingPrefsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
-                label: isDirectedMatch
-                    ? 'Send match request'
-                    : 'Find my partner',
-                isLoading: form.isLoading,
-                onPressed: () async {
-                  final success = await notifier.submit();
-                  if (!context.mounted || !success) return;
-                  if (isDirectedMatch) {
-                    context.push(AppRoutes.matchRequestPending);
-                  } else {
-                    context.push(AppRoutes.findingMatch);
-                  }
-                },
+                label: alreadySent
+                    ? 'Sent a match request'
+                    : isDirectedMatch
+                        ? 'Send match request'
+                        : 'Find my partner',
+                isLoading: form.isLoading || partnerState.isSending,
+                onPressed: alreadySent
+                    ? null
+                    : () async {
+                        final success = await notifier.submit();
+                        if (!context.mounted || !success) return;
+
+                        if (isDirectedMatch) {
+                          final sent = await ref
+                              .read(partnerMatchPendingProvider.notifier)
+                              .send();
+                          if (!context.mounted || !sent) return;
+                          context.push(AppRoutes.matchRequestPending);
+                        } else {
+                          context.push(AppRoutes.findingMatch);
+                        }
+                      },
               ),
             ],
           ),

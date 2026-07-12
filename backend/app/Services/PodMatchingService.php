@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Goal;
 use App\Models\PartnerMatchRequest;
 use App\Models\Pod;
 use App\Models\PodMember;
 use App\Models\PodRequest;
+use App\Models\User;
 
 class PodMatchingService
 {
@@ -118,28 +120,58 @@ class PodMatchingService
             'recipientGoal',
         ]);
 
-        $recipientOpenRequest = PodRequest::query()
-            ->with(['goal', 'user'])
-            ->where('user_id', $partnerRequest->recipient_user_id)
-            ->where('goal_id', $partnerRequest->recipient_goal_id)
-            ->where('status', 'open')
-            ->firstOrFail();
+        $recipientRequest = $this->podRequestForPartnerUser(
+            userId: $partnerRequest->recipient_user_id,
+            goalId: $partnerRequest->recipient_goal_id,
+            timezoneToleranceHours: $partnerRequest->timezone_tolerance_hours,
+            user: $partnerRequest->recipient,
+            goal: $partnerRequest->recipientGoal,
+        );
 
-        $requesterRequest = new PodRequest([
-            'user_id' => $partnerRequest->requester_user_id,
-            'goal_id' => $partnerRequest->requester_goal_id,
-            'status' => 'open',
-            'timezone_tolerance_hours' => $partnerRequest->timezone_tolerance_hours,
-            'language' => $partnerRequest->requester->language,
-        ]);
-        $requesterRequest->setRelation('goal', $partnerRequest->requesterGoal);
-        $requesterRequest->setRelation('user', $partnerRequest->requester);
+        $requesterRequest = $this->podRequestForPartnerUser(
+            userId: $partnerRequest->requester_user_id,
+            goalId: $partnerRequest->requester_goal_id,
+            timezoneToleranceHours: $partnerRequest->timezone_tolerance_hours,
+            user: $partnerRequest->requester,
+            goal: $partnerRequest->requesterGoal,
+        );
 
-        if (! $this->canPair($requesterRequest, $recipientOpenRequest)) {
+        if (! $this->canPair($requesterRequest, $recipientRequest)) {
             throw new \RuntimeException('incompatible_match');
         }
 
-        return $this->createMatch($requesterRequest, $recipientOpenRequest);
+        return $this->createMatch($requesterRequest, $recipientRequest);
+    }
+
+    private function podRequestForPartnerUser(
+        string $userId,
+        string $goalId,
+        int $timezoneToleranceHours,
+        User $user,
+        Goal $goal,
+    ): PodRequest {
+        $existing = PodRequest::query()
+            ->with(['goal', 'user'])
+            ->where('user_id', $userId)
+            ->where('goal_id', $goalId)
+            ->where('status', 'open')
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $request = new PodRequest([
+            'user_id' => $userId,
+            'goal_id' => $goalId,
+            'status' => 'open',
+            'timezone_tolerance_hours' => $timezoneToleranceHours,
+            'language' => $user->language,
+        ]);
+        $request->setRelation('goal', $goal);
+        $request->setRelation('user', $user);
+
+        return $request;
     }
 
     public function createMatch(PodRequest $request, PodRequest $candidate): Pod
@@ -178,7 +210,14 @@ class PodMatchingService
                 ->update(['status' => 'cancelled']);
         }
 
-        $candidate->update(['status' => 'matched']);
+        if ($candidate->exists) {
+            $candidate->update(['status' => 'matched']);
+        } else {
+            PodRequest::query()
+                ->where('user_id', $candidate->user_id)
+                ->where('status', 'open')
+                ->update(['status' => 'cancelled']);
+        }
 
         $this->notificationService->send($request->user, 'match_found', [
             'pod_id' => $pod->id,

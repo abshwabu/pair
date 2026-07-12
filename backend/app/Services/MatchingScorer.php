@@ -23,7 +23,11 @@ class MatchingScorer
      */
     public function score(PodRequest $request, PodRequest $candidate): int
     {
-        if ($request->id === $candidate->id || $request->user_id === $candidate->user_id) {
+        if ($request->user_id === $candidate->user_id) {
+            return 0;
+        }
+
+        if ($request->id !== null && $request->id === $candidate->id) {
             return 0;
         }
 

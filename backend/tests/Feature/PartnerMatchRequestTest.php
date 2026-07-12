@@ -25,14 +25,6 @@ class PartnerMatchRequestTest extends TestCase
         $requesterGoal = $this->createGoal($requester);
         $recipientGoal = $this->createGoal($recipient);
 
-        PodRequest::create([
-            'user_id' => $recipient->id,
-            'goal_id' => $recipientGoal->id,
-            'status' => 'open',
-            'timezone_tolerance_hours' => 3,
-            'language' => 'en',
-        ]);
-
         $response = $this->actingAs($requester, 'sanctum')
             ->postJson('/api/v1/matching/partner-requests', [
                 'goal_id' => $requesterGoal->id,
@@ -49,6 +41,33 @@ class PartnerMatchRequestTest extends TestCase
             'recipient_user_id' => $recipient->id,
             'status' => 'pending',
         ]);
+    }
+
+    public function test_recipient_can_accept_partner_match_request_without_open_search(): void
+    {
+        $requester = $this->createUser('requester@example.com');
+        $recipient = $this->createUser('recipient@example.com');
+
+        $requesterGoal = $this->createGoal($requester);
+        $recipientGoal = $this->createGoal($recipient);
+
+        $partnerRequest = PartnerMatchRequest::create([
+            'requester_user_id' => $requester->id,
+            'requester_goal_id' => $requesterGoal->id,
+            'recipient_user_id' => $recipient->id,
+            'recipient_goal_id' => $recipientGoal->id,
+            'status' => 'pending',
+            'timezone_tolerance_hours' => 3,
+        ]);
+
+        $response = $this->actingAs($recipient, 'sanctum')
+            ->postJson("/api/v1/matching/partner-requests/{$partnerRequest->id}/accept");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'accepted')
+            ->assertJsonStructure(['data' => ['pod_id']]);
+
+        $this->assertDatabaseCount('pods', 1);
     }
 
     public function test_recipient_can_accept_partner_match_request(): void

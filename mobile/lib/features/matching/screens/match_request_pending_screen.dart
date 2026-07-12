@@ -8,44 +8,15 @@ import 'package:pair/core/widgets/pair_app_bar.dart';
 import 'package:pair/core/widgets/primary_button.dart';
 import 'package:pair/features/matching/providers/partner_match_request_provider.dart';
 
-class MatchRequestPendingScreen extends ConsumerStatefulWidget {
+class MatchRequestPendingScreen extends ConsumerWidget {
   const MatchRequestPendingScreen({super.key});
 
   @override
-  ConsumerState<MatchRequestPendingScreen> createState() =>
-      _MatchRequestPendingScreenState();
-}
-
-class _MatchRequestPendingScreenState
-    extends ConsumerState<MatchRequestPendingScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(partnerMatchPendingProvider.notifier).start();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(partnerMatchPendingProvider);
-    final notifier = ref.read(partnerMatchPendingProvider.notifier);
     final theme = Theme.of(context);
     final request = state.request;
     final recipientName = request?.recipient?.name ?? 'your partner';
-
-    ref.listen(partnerMatchPendingProvider, (previous, next) {
-      final podId = next.request?.podId;
-      if (podId != null && podId != previous?.request?.podId) {
-        context.go(AppRoutes.matchFoundPath(podId));
-      }
-    });
-
-    final statusText = request?.isDeclined == true
-        ? '$recipientName declined your match request.'
-        : request?.isCancelled == true
-            ? 'Match request cancelled.'
-            : 'Waiting for $recipientName to accept your request…';
 
     return Scaffold(
       appBar: const PairAppBar(
@@ -67,25 +38,20 @@ class _MatchRequestPendingScreenState
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        request?.isDeclined == true || request?.isCancelled == true
-                            ? Icons.person_off_outlined
-                            : Icons.mail_outline,
+                        Icons.check_circle_outline,
                         size: 72,
                         color: theme.colorScheme.primary,
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
-                        request?.isDeclined == true
-                            ? 'Request declined'
-                            : request?.isCancelled == true
-                                ? 'Request cancelled'
-                                : 'Request sent',
+                        'Request sent',
                         style: theme.textTheme.headlineMedium,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        statusText,
+                        'Your match request was sent to $recipientName. '
+                        'We\'ll notify you when they respond.',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -113,24 +79,13 @@ class _MatchRequestPendingScreenState
                           ),
                         ),
                       ],
-                      if (state.isWaiting) ...[
-                        const SizedBox(height: AppSpacing.lg),
-                        const CircularProgressIndicator(),
-                      ],
                     ],
                   ),
                 ),
               ),
               PrimaryButton(
-                label: state.isWaiting ? 'Cancel request' : 'Back to goals',
-                isLoading: state.isCancelling,
-                onPressed: state.isWaiting
-                    ? () async {
-                        final cancelled = await notifier.cancel();
-                        if (!context.mounted || !cancelled) return;
-                        context.pop();
-                      }
-                    : () => context.go(AppRoutes.goalList),
+                label: 'Back to goals',
+                onPressed: () => context.go(AppRoutes.goalList),
               ),
             ],
           ),
